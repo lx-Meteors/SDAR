@@ -73,7 +73,35 @@ class DataParallelPPOActor(BasePPOActor):
         )
         self.device_name = get_device_name()
 
-    def _forward_micro_batch(self, micro_batch, temperature, calculate_entropy=False) -> Tuple[torch.Tensor, torch.Tensor]:
+    @staticmethod
+    @torch.no_grad()
+    def _teca_stats_from_logits(logits_2d, rolled_ids, chunk_size=4096):
+        """Chunked fp32 per-row statistics for TECA from (already temperature-scaled)
+        logits of shape (N, vocab): full-vocab entropy, argmax id, realized log-prob
+        of `rolled_ids`. Single exp pass per chunk (max/argmax fused, no softmax
+        materialization):
+            H = lse - sum(e * x) / se,  lse = mx + log(se),  e = exp(x - mx), se = sum(e)
+        """
+        entropy_lst, argmax_lst, realized_lst = [], [], []
+        total = logits_2d.size(0)
+        for st in range(0, total, chunk_size):
+            chunk = logits_2d[st : st + chunk_size].float()
+            mx, amax = chunk.max(dim=-1)
+            e = torch.exp(chunk - mx.unsqueeze(-1))
+            se = e.sum(dim=-1)
+            pxs = (e * chunk).sum(dim=-1)
+            lse = mx + se.log()
+            entropy_lst.append(lse - pxs / se)
+            argmax_lst.append(amax)
+            realized_lst.append(
+                torch.gather(chunk, -1, rolled_ids[st : st + chunk_size].unsqueeze(-1)).squeeze(-1) - lse
+            )
+            del chunk, e
+        return torch.cat(entropy_lst), torch.cat(argmax_lst), torch.cat(realized_lst)
+
+    def _forward_micro_batch(
+        self, micro_batch, temperature, calculate_entropy=False, calculate_teca_stats=False
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
             entropy: # (bs, response_len)
@@ -153,6 +181,16 @@ class DataParallelPPOActor(BasePPOActor):
                     logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab_size)
                     logits_rmpad.div_(temperature)
 
+                    # TECA: fp32 full-vocab stats from the SAME forward (saves a whole
+                    # extra student forward pass). Must run before logprobs_from_logits
+                    # which may modify logits in place.
+                    if calculate_teca_stats:
+                        if self.use_ulysses_sp:
+                            raise NotImplementedError("TECA stats does not support ulysses sp > 1")
+                        teca_ent_rm, teca_amax_rm, teca_real_rm = self._teca_stats_from_logits(
+                            logits_rmpad, input_ids_rmpad_rolled
+                        )
+
                     # if use_sp: ((total_nnz / sp) + pad) ; if not use_sp: (batch, seqlen)
                     inplace_backward = True
                     if calculate_entropy:
@@ -163,9 +201,12 @@ class DataParallelPPOActor(BasePPOActor):
                         inplace_backward=inplace_backward,
                     )
 
-                    # compute entropy
+                    # compute entropy (reuse the fp32 TECA entropy if already computed)
                     if calculate_entropy:
-                        entropy_rmpad = self.compute_entropy_from_logits(logits_rmpad)  # ((total_nnz / sp) + pad)
+                        if calculate_teca_stats:
+                            entropy_rmpad = teca_ent_rm
+                        else:
+                            entropy_rmpad = self.compute_entropy_from_logits(logits_rmpad)  # ((total_nnz / sp) + pad)
 
                 # gather log_prob if sp > 1
                 if self.use_ulysses_sp:
@@ -203,6 +244,19 @@ class DataParallelPPOActor(BasePPOActor):
                     entropy = full_entropy.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
                 log_probs = full_log_probs.squeeze(-1)[:, -response_length - 1 : -1]  # (bsz, response_length)
 
+                if calculate_teca_stats:
+                    def _pad_back_resp(x_rmpad):
+                        return pad_input(
+                            hidden_states=x_rmpad.unsqueeze(-1), indices=indices,
+                            batch=batch_size, seqlen=seqlen,
+                        ).squeeze(-1)[:, -response_length - 1 : -1]
+
+                    teca_stats = {
+                        "full_entropy": _pad_back_resp(teca_ent_rm),
+                        "argmax_ids": _pad_back_resp(teca_amax_rm),
+                        "realized_log_probs": _pad_back_resp(teca_real_rm),
+                    }
+
             else:  # not using rmpad and no ulysses sp
                 extra_args = {}
                 if self.use_fused_kernels:
@@ -217,6 +271,8 @@ class DataParallelPPOActor(BasePPOActor):
                 )  # prevent model thinks we are generating
 
                 if self.use_fused_kernels:
+                    if calculate_teca_stats:
+                        raise NotImplementedError("TECA stats does not support fused kernels")
                     log_probs = output.log_probs[:, -response_length - 1 : -1]
                     entropy = output.entropy[:, -response_length - 1 : -1]  # (bsz, response_length)
 
@@ -225,11 +281,131 @@ class DataParallelPPOActor(BasePPOActor):
 
                     logits.div_(temperature)
                     logits = logits[:, -response_length - 1 : -1, :]  # (bsz, response_length, vocab_size)
+                    if calculate_teca_stats:
+                        ent2d, amax2d, real2d = self._teca_stats_from_logits(
+                            logits.reshape(-1, logits.size(-1)),
+                            micro_batch["responses"].reshape(-1),
+                        )
+                        teca_stats = {
+                            "full_entropy": ent2d.view(logits.shape[:2]),
+                            "argmax_ids": amax2d.view(logits.shape[:2]),
+                            "realized_log_probs": real2d.view(logits.shape[:2]),
+                        }
                     log_probs = logprobs_from_logits(logits, micro_batch["responses"])
                     if calculate_entropy:
-                        entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
+                        if calculate_teca_stats:
+                            entropy = teca_stats["full_entropy"]
+                        else:
+                            entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
 
+            if calculate_teca_stats:
+                return entropy, log_probs, teca_stats
             return entropy, log_probs
+
+    @torch.no_grad()
+    def _forward_micro_batch_teca_stats(self, micro_batch, temperature):
+        """
+        No-grad forward pass returning per-response-token statistics for TECA:
+          full_entropy      : (bs, L) full-vocabulary entropy H_full (nats)
+          argmax_ids        : (bs, L) full-vocab argmax token id (for the top-1 gate)
+          realized_log_probs: (bs, L) log p(y_t) of the realized token
+
+        The target-excluded candidate entropy H^{\\y} is recovered downstream in
+        closed form from (full_entropy, realized_log_probs); no top-k candidate
+        tensors need to be materialized or stored.
+        """
+        if self.use_ulysses_sp:
+            raise NotImplementedError("TECA stats does not support ulysses sp > 1")
+        if self.use_fused_kernels:
+            raise NotImplementedError("TECA stats does not support fused kernels")
+
+        response_length = micro_batch["responses"].size(-1)
+
+        with torch.autocast(device_type=self.device_name, dtype=torch.bfloat16):
+            input_ids = micro_batch["input_ids"]
+            batch_size, seqlen = input_ids.shape
+            attention_mask = micro_batch["attention_mask"]
+            position_ids = micro_batch["position_ids"]
+
+            if self.use_remove_padding:
+                input_ids_rmpad, indices, *_ = unpad_input(input_ids.unsqueeze(-1), attention_mask)
+                input_ids_rmpad = input_ids_rmpad.transpose(0, 1)  # (1, total_nnz)
+                position_ids_rmpad = index_first_axis(
+                    rearrange(position_ids.unsqueeze(-1), "b s ... -> (b s) ..."), indices
+                ).transpose(0, 1)
+                input_ids_rmpad_rolled = torch.roll(input_ids_rmpad, shifts=-1, dims=1).squeeze(0)  # (total_nnz,)
+
+                output = self.actor_module(
+                    input_ids=input_ids_rmpad,
+                    attention_mask=None,
+                    position_ids=position_ids_rmpad,
+                    use_cache=False,
+                )
+                logits_rmpad = output.logits.squeeze(0)  # (total_nnz, vocab), bf16
+                logits_rmpad.div_(temperature)
+
+                full_entropy_rmpad, argmax_ids_rmpad, realized_logps_rmpad = self._teca_stats_from_logits(
+                    logits_rmpad, input_ids_rmpad_rolled
+                )
+                del logits_rmpad
+
+                def _pad_back(x_rmpad):
+                    x_rmpad = x_rmpad.unsqueeze(-1)
+                    return pad_input(x_rmpad, indices, batch_size, seqlen).squeeze(-1)[:, -response_length - 1 : -1]
+
+                result = {
+                    "full_entropy": _pad_back(full_entropy_rmpad),
+                    "argmax_ids": _pad_back(argmax_ids_rmpad),
+                    "realized_log_probs": _pad_back(realized_logps_rmpad),
+                }
+            else:
+                output = self.actor_module(
+                    input_ids=input_ids,
+                    attention_mask=attention_mask,
+                    position_ids=position_ids,
+                    use_cache=False,
+                )
+                logits = output.logits.float()
+                logits.div_(temperature)
+                logits = logits[:, -response_length - 1 : -1, :]  # (bs, L, vocab)
+                lse = torch.logsumexp(logits, dim=-1)
+                probs = torch.softmax(logits, dim=-1)
+                full_entropy = lse - (probs * logits).sum(dim=-1)
+                argmax_ids = logits.argmax(dim=-1)
+                realized_logps = torch.gather(
+                    logits, -1, micro_batch["responses"].unsqueeze(-1)
+                ).squeeze(-1) - lse
+                del logits, probs
+
+                result = {
+                    "full_entropy": full_entropy,
+                    "argmax_ids": argmax_ids,
+                    "realized_log_probs": realized_logps,
+                }
+
+            return result
+
+    @GPUMemoryLogger(role="dp actor", logger=logger)
+    def compute_candidate_stats(self, data: DataProto):
+        """Compute per-token TECA statistics over a full batch.
+
+        meta_info: micro_batch_size, temperature.
+        Returns full_entropy, argmax_ids, realized_log_probs (each (bs, L)).
+        """
+        self.actor_module.eval()
+
+        micro_batch_size = data.meta_info["micro_batch_size"]
+        temperature = data.meta_info["temperature"]
+
+        select_keys = ["responses", "input_ids", "attention_mask", "position_ids"]
+        batch = data.select(batch_keys=select_keys).batch
+        micro_batches = batch.split(micro_batch_size)
+
+        outputs = []
+        for micro_batch in micro_batches:
+            outputs.append(self._forward_micro_batch_teca_stats(micro_batch, temperature=temperature))
+
+        return {key: torch.concat([o[key] for o in outputs], dim=0) for key in outputs[0].keys()}
 
     def _optimizer_step(self):
         assert self.config.grad_clip is not None
@@ -274,6 +450,7 @@ class DataParallelPPOActor(BasePPOActor):
         micro_batch_size = data.meta_info["micro_batch_size"]
         temperature = data.meta_info["temperature"]  # temperature must be in the data.meta_info to avoid silent error
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
+        calculate_teca_stats = data.meta_info.get("calculate_teca_stats", False)
 
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids"]
         batch = data.select(batch_keys=select_keys).batch
@@ -292,11 +469,19 @@ class DataParallelPPOActor(BasePPOActor):
 
         log_probs_lst = []
         entropy_lst = []
+        teca_stats_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
                 micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
             with torch.no_grad():
-                entropy, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature, calculate_entropy=calculate_entropy)
+                if calculate_teca_stats:
+                    entropy, log_probs, teca_stats = self._forward_micro_batch(
+                        micro_batch, temperature=temperature,
+                        calculate_entropy=calculate_entropy, calculate_teca_stats=True,
+                    )
+                    teca_stats_lst.append(teca_stats)
+                else:
+                    entropy, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature, calculate_entropy=calculate_entropy)
             log_probs_lst.append(log_probs)
             if calculate_entropy:
                 entropy_lst.append(entropy)
@@ -310,6 +495,14 @@ class DataParallelPPOActor(BasePPOActor):
             assert len(indices) == log_probs.size(0), f"{len(indices)} vs. {log_probs.size()}"
             revert_indices = torch.tensor(get_reverse_idx(indices), dtype=torch.long)
             log_probs = log_probs[revert_indices]
+            if calculate_teca_stats:
+                raise NotImplementedError("TECA stats with use_dynamic_bsz is not supported")
+
+        if calculate_teca_stats:
+            teca_stats = {
+                key: torch.concat([s[key] for s in teca_stats_lst], dim=0) for key in teca_stats_lst[0].keys()
+            }
+            return log_probs, entropys, teca_stats
 
         return log_probs, entropys
 

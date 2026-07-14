@@ -1,0 +1,200 @@
+[
+  {
+    "gid": 6713,
+    "instruction": "Find me machine wash men's pants with drawstring closure, elastic waist, polyester spandex with color: navy, and size: x-large, and price lower than 40.00 dollars",
+    "trajectories": [
+      {
+        "role": "success",
+        "rollout": 2,
+        "reward": 0.857,
+        "advantage": 3.55,
+        "n_tokens": 995,
+        "n_boosted": 405,
+        "boost_frac": 0.407,
+        "total_extra_credit": 9.5398,
+        "top_boosted_tokens": [
+          {
+            "seg": "think",
+            "delta_h": 2.1003,
+            "d_adv": 0.21,
+            "context": " for \"machine wash men's pants with",
+            "token": " draw"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.7231,
+            "d_adv": 0.1723,
+            "context": " in size x-large. However, the",
+            "token": " price"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.3466,
+            "d_adv": 0.1347,
+            "context": " there's no need to perform another search",
+            "token": "."
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.2752,
+            "d_adv": 0.1275,
+            "context": " another search. The next step would be",
+            "token": " to"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.2338,
+            "d_adv": 0.1234,
+            "context": ". However, the price is $7",
+            "token": "."
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.1485,
+            "d_adv": 0.1149,
+            "context": " with a drawstring closure, elastic waist",
+            "token": ","
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.143,
+            "d_adv": 0.1143,
+            "context": " up as per the requirements, there's",
+            "token": " no"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.1163,
+            "d_adv": 0.1116,
+            "context": " the first product that matches these criteria.\n",
+            "token": "</"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.1093,
+            "d_adv": 0.1109,
+            "context": " search has already been set up as per",
+            "token": " the"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.0469,
+            "d_adv": 0.1047,
+            "context": " search. Clicking the 'search'",
+            "token": " button"
+          }
+        ]
+      },
+      {
+        "role": "failure",
+        "rollout": 0,
+        "reward": 0.0,
+        "advantage": -0.332,
+        "n_tokens": 890,
+        "n_boosted": 0,
+        "boost_frac": 0.0,
+        "total_extra_credit": 0.0,
+        "top_boosted_tokens": []
+      }
+    ]
+  },
+  {
+    "gid": 3357,
+    "instruction": "Find me quick drying, moisture wicking women's activewear with long sleeve with color: c-black, and size: xx-large, and price lower than 40.00 dollars",
+    "trajectories": [
+      {
+        "role": "success",
+        "rollout": 6,
+        "reward": 0.833,
+        "advantage": 2.551,
+        "n_tokens": 1023,
+        "n_boosted": 403,
+        "boost_frac": 0.3939,
+        "total_extra_credit": 8.6288,
+        "top_boosted_tokens": [
+          {
+            "seg": "think",
+            "delta_h": 1.3009,
+            "d_adv": 0.1301,
+            "context": ". Therefore, clicking on this product would",
+            "token": " be"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.2368,
+            "d_adv": 0.1237,
+            "context": " assume the last clicked product was indeed a",
+            "token": " good"
+          },
+          {
+            "seg": "action",
+            "delta_h": 1.1445,
+            "d_adv": 0.1145,
+            "context": "</think>\n\n<action>click[c",
+            "token": "-black"
+          },
+          {
+            "seg": "think",
+            "delta_h": 1.0417,
+            "d_adv": 0.1042,
+            "context": " under $40. Since the current",
+            "token": " observation"
+          },
+          {
+            "seg": "think",
+            "delta_h": 0.9888,
+            "d_adv": 0.0989,
+            "context": " from the previous search seems to be the",
+            "token": " one"
+          },
+          {
+            "seg": "think",
+            "delta_h": 0.9646,
+            "d_adv": 0.0965,
+            "context": " see if it meets all our needs.\n",
+            "token": "</"
+          },
+          {
+            "seg": "think",
+            "delta_h": 0.9457,
+            "d_adv": 0.0946,
+            "context": " access to actual search results, let's",
+            "token": " assume"
+          },
+          {
+            "seg": "think",
+            "delta_h": 0.7945,
+            "d_adv": 0.0795,
+            "context": " and has long sleeves, though it's",
+            "token": " not"
+          },
+          {
+            "seg": "action",
+            "delta_h": 0.738,
+            "d_adv": 0.0738,
+            "context": ">\n\n<action>click[Product ID",
+            "token": " of"
+          },
+          {
+            "seg": "think",
+            "delta_h": 0.7327,
+            "d_adv": 0.0733,
+            "context": "Buy Now' button to proceed with the",
+            "token": " purchase"
+          }
+        ]
+      },
+      {
+        "role": "failure",
+        "rollout": 0,
+        "reward": 0.0,
+        "advantage": -0.411,
+        "n_tokens": 888,
+        "n_boosted": 0,
+        "boost_frac": 0.0,
+        "total_extra_credit": 0.0,
+        "top_boosted_tokens": []
+      }
+    ]
+  }
+]

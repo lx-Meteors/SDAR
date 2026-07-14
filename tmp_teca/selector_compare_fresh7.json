@@ -1,0 +1,62 @@
+{
+  "n_positive_trajectories": 13,
+  "top_frac": 0.2,
+  "selectors": {
+    "dh_pos": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.2013,
+      "content_word_frac": 0.4873,
+      "action_seg_frac": 0.1445,
+      "mean_student_entropy": 0.4183,
+      "jaccard_vs_dh_pos": 1.0
+    },
+    "dh_neg": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.1898,
+      "content_word_frac": 0.3767,
+      "action_seg_frac": 0.1445,
+      "mean_student_entropy": 0.4237,
+      "jaccard_vs_dh_pos": 0.0
+    },
+    "abs_dh": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.1784,
+      "content_word_frac": 0.4069,
+      "action_seg_frac": 0.1765,
+      "mean_student_entropy": 0.3846,
+      "jaccard_vs_dh_pos": 0.458
+    },
+    "student_full": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.1499,
+      "content_word_frac": 0.338,
+      "action_seg_frac": 0.0133,
+      "mean_student_entropy": 1.4012,
+      "jaccard_vs_dh_pos": 0.1183
+    },
+    "student_woy": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.1524,
+      "content_word_frac": 0.4571,
+      "action_seg_frac": 0.0677,
+      "mean_student_entropy": 0.8113,
+      "jaccard_vs_dh_pos": 0.0894
+    },
+    "teacher_woy": {
+      "kept_tokens": 1654,
+      "constraint_hit_rate": 0.1385,
+      "content_word_frac": 0.4927,
+      "action_seg_frac": 0.0671,
+      "mean_student_entropy": 0.8172,
+      "jaccard_vs_dh_pos": 0.2055
+    },
+    "random": {
+      "kept_tokens": 1649,
+      "constraint_hit_rate": 0.2153,
+      "content_word_frac": 0.4694,
+      "action_seg_frac": 0.1334,
+      "mean_student_entropy": 0.3771,
+      "jaccard_vs_dh_pos": 0.1051
+    }
+  }
+}

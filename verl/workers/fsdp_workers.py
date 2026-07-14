@@ -688,12 +688,27 @@ class ActorRolloutRefWorker(Worker):
         data.meta_info["use_dynamic_bsz"] = self.config.rollout.log_prob_use_dynamic_bsz
         data.meta_info["temperature"] = self.config.rollout.temperature
         # perform recompute log_prob
+        calculate_teca_stats = data.meta_info.get("calculate_teca_stats", False)
         with self.ulysses_sharding_manager:
             data = self.ulysses_sharding_manager.preprocess_data(data)
             with adapter_ctx:
-                output, entropys = self.actor.compute_log_prob(data=data, calculate_entropy=True)
+                if calculate_teca_stats:
+                    # TECA: same forward additionally yields full-vocab entropy /
+                    # argmax / realized log-probs (saves a dedicated student pass)
+                    output, entropys, teca_stats = self.actor.compute_log_prob(data=data, calculate_entropy=True)
+                else:
+                    output, entropys = self.actor.compute_log_prob(data=data, calculate_entropy=True)
+            tensors = {"old_log_probs": output, "entropys": entropys}
+            if calculate_teca_stats:
+                tensors.update(
+                    {
+                        "teca_full_entropy": teca_stats["full_entropy"],
+                        "teca_argmax_ids": teca_stats["argmax_ids"],
+                        "teca_realized_log_probs": teca_stats["realized_log_probs"],
+                    }
+                )
             output = DataProto.from_dict(
-                tensors={"old_log_probs": output, "entropys": entropys},
+                tensors=tensors,
                 meta_info={"temperature": self.config.rollout.temperature},
             )
             output = self.ulysses_sharding_manager.postprocess_data(output)
@@ -708,6 +723,35 @@ class ActorRolloutRefWorker(Worker):
         if self._is_offload_param:
             offload_fsdp_model_to_cpu(self.actor_module_fsdp)
             log_gpu_memory_usage("After offload actor model during compute_log_prob", logger=logger)
+
+        return output
+
+    @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
+    def compute_candidate_stats(self, data: DataProto):
+        """TECA: per-response-token statistics (full_entropy / argmax_ids /
+        realized_log_probs) used to recover the target-excluded candidate
+        entropy gap delta_H in closed form."""
+        assert self._is_actor
+        if self._is_offload_param:
+            load_fsdp_model_to_gpu(self.actor_module_fsdp)
+
+        data = data.to(get_torch_device().current_device())
+        data.meta_info["micro_batch_size"] = self.config.rollout.log_prob_micro_batch_size_per_gpu
+        data.meta_info["temperature"] = self.config.rollout.temperature
+
+        with self.ulysses_sharding_manager:
+            data = self.ulysses_sharding_manager.preprocess_data(data)
+            tensors = self.actor.compute_candidate_stats(data=data)
+            output = DataProto.from_dict(tensors=tensors)
+            output = self.ulysses_sharding_manager.postprocess_data(output)
+
+        output = output.to("cpu")
+
+        if self.world_size > 1 and fsdp_version(self.actor.actor_module) == 1:
+            self.actor.actor_module._handle.reshard(True)
+
+        if self._is_offload_param:
+            offload_fsdp_model_to_cpu(self.actor_module_fsdp)
 
         return output
 

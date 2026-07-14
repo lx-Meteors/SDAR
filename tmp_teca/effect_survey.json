@@ -1,0 +1,547 @@
+{
+  "summary": {
+    "n_positive_trajectories": 10,
+    "relu_boost_frac_mean": 0.3996,
+    "relu_boost_frac_min_max": [
+      0.3453,
+      0.4459
+    ],
+    "centered_boost_frac_mean": 0.3324,
+    "top20_boost_frac_mean": 0.1442,
+    "top20_boost_frac_min_max": [
+      0.1352,
+      0.1518
+    ],
+    "relu_boosted_content_word_frac": 0.6027,
+    "centered_boosted_content_word_frac": 0.5903,
+    "top20_boosted_content_word_frac": 0.568,
+    "relu_counts": {
+      "content": 1754,
+      "func": 1156
+    },
+    "centered_counts": {
+      "content": 1429,
+      "func": 992
+    },
+    "top20_counts": {
+      "content": 597,
+      "func": 454
+    }
+  },
+  "per_trajectory": [
+    {
+      "gid": 5024,
+      "rollout": 13,
+      "reward": 0.167,
+      "advantage": 0.678,
+      "n_tokens": 687,
+      "relu_boost_frac": 0.3872,
+      "centered_boost_frac": 0.3319,
+      "top20_boost_frac": 0.1412,
+      "dh_top1_mean": 0.0406
+    },
+    {
+      "gid": 5024,
+      "rollout": 15,
+      "reward": 0.667,
+      "advantage": 3.635,
+      "n_tokens": 577,
+      "relu_boost_frac": 0.3726,
+      "centered_boost_frac": 0.338,
+      "top20_boost_frac": 0.1352,
+      "dh_top1_mean": 0.0205
+    },
+    {
+      "gid": 6713,
+      "rollout": 2,
+      "reward": 0.857,
+      "advantage": 3.55,
+      "n_tokens": 995,
+      "relu_boost_frac": 0.408,
+      "centered_boost_frac": 0.3377,
+      "top20_boost_frac": 0.1437,
+      "dh_top1_mean": 0.0399
+    },
+    {
+      "gid": 6713,
+      "rollout": 5,
+      "reward": 0.286,
+      "advantage": 0.962,
+      "n_tokens": 866,
+      "relu_boost_frac": 0.3453,
+      "centered_boost_frac": 0.3025,
+      "top20_boost_frac": 0.142,
+      "dh_top1_mean": 0.03
+    },
+    {
+      "gid": 3357,
+      "rollout": 6,
+      "reward": 0.833,
+      "advantage": 2.551,
+      "n_tokens": 1023,
+      "relu_boost_frac": 0.3949,
+      "centered_boost_frac": 0.3284,
+      "top20_boost_frac": 0.1398,
+      "dh_top1_mean": 0.0315
+    },
+    {
+      "gid": 3357,
+      "rollout": 13,
+      "reward": 0.833,
+      "advantage": 2.551,
+      "n_tokens": 710,
+      "relu_boost_frac": 0.4211,
+      "centered_boost_frac": 0.3239,
+      "top20_boost_frac": 0.1451,
+      "dh_top1_mean": 0.0565
+    },
+    {
+      "gid": 4923,
+      "rollout": 5,
+      "reward": 0.75,
+      "advantage": 3.75,
+      "n_tokens": 673,
+      "relu_boost_frac": 0.425,
+      "centered_boost_frac": 0.3477,
+      "top20_boost_frac": 0.1486,
+      "dh_top1_mean": 0.057
+    },
+    {
+      "gid": 1984,
+      "rollout": 7,
+      "reward": 0.286,
+      "advantage": 1.621,
+      "n_tokens": 403,
+      "relu_boost_frac": 0.3772,
+      "centered_boost_frac": 0.3424,
+      "top20_boost_frac": 0.1489,
+      "dh_top1_mean": 0.0087
+    },
+    {
+      "gid": 1984,
+      "rollout": 9,
+      "reward": 0.286,
+      "advantage": 1.621,
+      "n_tokens": 453,
+      "relu_boost_frac": 0.4459,
+      "centered_boost_frac": 0.3245,
+      "top20_boost_frac": 0.1457,
+      "dh_top1_mean": 0.0647
+    },
+    {
+      "gid": 1984,
+      "rollout": 12,
+      "reward": 0.429,
+      "advantage": 2.658,
+      "n_tokens": 909,
+      "relu_boost_frac": 0.4191,
+      "centered_boost_frac": 0.3465,
+      "top20_boost_frac": 0.1518,
+      "dh_top1_mean": 0.0281
+    }
+  ],
+  "centered_content_examples": [
+    {
+      "tok": "ink",
+      "dh": 0.264,
+      "seg": "think"
+    },
+    {
+      "tok": " instruction",
+      "dh": 0.485,
+      "seg": "think"
+    },
+    {
+      "tok": " men",
+      "dh": 0.797,
+      "seg": "think"
+    },
+    {
+      "tok": " t",
+      "dh": 0.644,
+      "seg": "think"
+    },
+    {
+      "tok": "-shirts",
+      "dh": 0.244,
+      "seg": "think"
+    },
+    {
+      "tok": " classic",
+      "dh": 0.046,
+      "seg": "think"
+    },
+    {
+      "tok": " dark",
+      "dh": 0.581,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.311,
+      "seg": "think"
+    },
+    {
+      "tok": " size",
+      "dh": 0.282,
+      "seg": "think"
+    },
+    {
+      "tok": " type",
+      "dh": 0.176,
+      "seg": "think"
+    },
+    {
+      "tok": " fit",
+      "dh": 0.101,
+      "seg": "think"
+    },
+    {
+      "tok": " men",
+      "dh": 0.067,
+      "seg": "think"
+    },
+    {
+      "tok": " search",
+      "dh": 0.785,
+      "seg": "think"
+    },
+    {
+      "tok": " results",
+      "dh": 0.968,
+      "seg": "think"
+    },
+    {
+      "tok": " color",
+      "dh": 0.057,
+      "seg": "think"
+    },
+    {
+      "tok": " price",
+      "dh": 0.129,
+      "seg": "think"
+    },
+    {
+      "tok": "4",
+      "dh": 0.198,
+      "seg": "think"
+    },
+    {
+      "tok": "0",
+      "dh": 0.237,
+      "seg": "think"
+    },
+    {
+      "tok": "0",
+      "dh": 0.792,
+      "seg": "think"
+    },
+    {
+      "tok": " dollars",
+      "dh": 0.419,
+      "seg": "think"
+    },
+    {
+      "tok": "think",
+      "dh": 0.152,
+      "seg": "think"
+    },
+    {
+      "tok": "search",
+      "dh": 0.44,
+      "seg": "action"
+    },
+    {
+      "tok": " sleeve",
+      "dh": 0.161,
+      "seg": "action"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.199,
+      "seg": "action"
+    },
+    {
+      "tok": "ink",
+      "dh": 0.078,
+      "seg": "think"
+    },
+    {
+      "tok": " instruction",
+      "dh": 0.628,
+      "seg": "think"
+    },
+    {
+      "tok": " men",
+      "dh": 1.33,
+      "seg": "think"
+    },
+    {
+      "tok": " t",
+      "dh": 0.397,
+      "seg": "think"
+    },
+    {
+      "tok": "-shirts",
+      "dh": 0.117,
+      "seg": "think"
+    },
+    {
+      "tok": " tanks",
+      "dh": 0.079,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.582,
+      "seg": "think"
+    },
+    {
+      "tok": " color",
+      "dh": 0.488,
+      "seg": "think"
+    },
+    {
+      "tok": "0",
+      "dh": 0.339,
+      "seg": "think"
+    },
+    {
+      "tok": " criteria",
+      "dh": 0.15,
+      "seg": "think"
+    },
+    {
+      "tok": "think",
+      "dh": 0.308,
+      "seg": "think"
+    },
+    {
+      "tok": "g",
+      "dh": 0.184,
+      "seg": "action"
+    },
+    {
+      "tok": "ink",
+      "dh": 0.11,
+      "seg": "think"
+    },
+    {
+      "tok": " observation",
+      "dh": 0.389,
+      "seg": "think"
+    },
+    {
+      "tok": " shows",
+      "dh": 0.12,
+      "seg": "think"
+    },
+    {
+      "tok": " matching",
+      "dh": 0.191,
+      "seg": "think"
+    }
+  ],
+  "top20_content_examples": [
+    {
+      "tok": " instruction",
+      "dh": 0.485,
+      "seg": "think"
+    },
+    {
+      "tok": " men",
+      "dh": 0.797,
+      "seg": "think"
+    },
+    {
+      "tok": " t",
+      "dh": 0.644,
+      "seg": "think"
+    },
+    {
+      "tok": " dark",
+      "dh": 0.581,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.311,
+      "seg": "think"
+    },
+    {
+      "tok": " search",
+      "dh": 0.785,
+      "seg": "think"
+    },
+    {
+      "tok": " results",
+      "dh": 0.968,
+      "seg": "think"
+    },
+    {
+      "tok": "0",
+      "dh": 0.792,
+      "seg": "think"
+    },
+    {
+      "tok": " dollars",
+      "dh": 0.419,
+      "seg": "think"
+    },
+    {
+      "tok": "search",
+      "dh": 0.44,
+      "seg": "action"
+    },
+    {
+      "tok": " instruction",
+      "dh": 0.628,
+      "seg": "think"
+    },
+    {
+      "tok": " men",
+      "dh": 1.33,
+      "seg": "think"
+    },
+    {
+      "tok": " t",
+      "dh": 0.397,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.582,
+      "seg": "think"
+    },
+    {
+      "tok": " color",
+      "dh": 0.488,
+      "seg": "think"
+    },
+    {
+      "tok": "0",
+      "dh": 0.339,
+      "seg": "think"
+    },
+    {
+      "tok": "think",
+      "dh": 0.308,
+      "seg": "think"
+    },
+    {
+      "tok": " observation",
+      "dh": 0.389,
+      "seg": "think"
+    },
+    {
+      "tok": " criteria",
+      "dh": 0.456,
+      "seg": "think"
+    },
+    {
+      "tok": " requirement",
+      "dh": 0.321,
+      "seg": "think"
+    },
+    {
+      "tok": " sleeve",
+      "dh": 0.312,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.408,
+      "seg": "think"
+    },
+    {
+      "tok": " price",
+      "dh": 0.58,
+      "seg": "think"
+    },
+    {
+      "tok": " search",
+      "dh": 0.6,
+      "seg": "think"
+    },
+    {
+      "tok": " refine",
+      "dh": 0.502,
+      "seg": "think"
+    },
+    {
+      "tok": "'s",
+      "dh": 0.429,
+      "seg": "think"
+    },
+    {
+      "tok": " fit",
+      "dh": 0.563,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.334,
+      "seg": "think"
+    },
+    {
+      "tok": " color",
+      "dh": 0.333,
+      "seg": "think"
+    },
+    {
+      "tok": " colors",
+      "dh": 0.299,
+      "seg": "think"
+    },
+    {
+      "tok": " results",
+      "dh": 0.553,
+      "seg": "think"
+    },
+    {
+      "tok": " refine",
+      "dh": 0.43,
+      "seg": "think"
+    },
+    {
+      "tok": " looking",
+      "dh": 0.425,
+      "seg": "think"
+    },
+    {
+      "tok": "search",
+      "dh": 0.915,
+      "seg": "action"
+    },
+    {
+      "tok": " sleeve",
+      "dh": 0.725,
+      "seg": "action"
+    },
+    {
+      "tok": " instruction",
+      "dh": 0.553,
+      "seg": "think"
+    },
+    {
+      "tok": "ather",
+      "dh": 0.611,
+      "seg": "think"
+    },
+    {
+      "tok": " criteria",
+      "dh": 0.362,
+      "seg": "think"
+    },
+    {
+      "tok": "lee",
+      "dh": 0.616,
+      "seg": "think"
+    },
+    {
+      "tok": " product",
+      "dh": 0.446,
+      "seg": "think"
+    }
+  ]
+}
