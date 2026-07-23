@@ -100,14 +100,19 @@ class DataParallelPPOActor(BasePPOActor):
         return torch.cat(entropy_lst), torch.cat(argmax_lst), torch.cat(realized_lst)
 
     def _forward_micro_batch(
-        self, micro_batch, temperature, calculate_entropy=False, calculate_teca_stats=False
+        self, micro_batch, temperature, calculate_entropy=False, calculate_teca_stats=False, tstar=None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
             entropy: # (bs, response_len)
             log_probs: # (bs, response_len)
+        When ``tstar`` is a dict (with key ``gamma``), additionally returns the
+        per-token forward-KL toward the skill-teacher t* target (bs, response_len).
         """
         response_length = micro_batch["responses"].size(-1)
+        if tstar is not None:
+            assert not self.use_fused_kernels, "t* loss does not support fused kernels"
+            assert not self.use_ulysses_sp, "t* loss does not support ulysses sp > 1"
         multi_modal_inputs = {}
         if "multi_modal_inputs" in micro_batch:
             for key in micro_batch["multi_modal_inputs"][0].keys():
@@ -191,6 +196,32 @@ class DataParallelPPOActor(BasePPOActor):
                             logits_rmpad, input_ids_rmpad_rolled
                         )
 
+                    # t*: gather the L response-prediction positions [-L-1:-1] of
+                    # each row from the PACKED logits (all real tokens). index_select
+                    # copies, so it stays valid even if logprobs_from_logits below
+                    # modifies logits_rmpad in place. Must run before that call.
+                    student_resp_logits_rmpad = None
+                    if tstar is not None:
+                        V = logits_rmpad.size(-1)
+                        total_nnz = logits_rmpad.size(0)
+                        # Map every flat (bs*seqlen) position to its packed row.
+                        # Non-real (padding) positions stay 0 -> index_select is
+                        # always in-bounds; those positions are masked out by
+                        # response_mask when tstar_kl is aggregated downstream.
+                        flat_to_packed = logits_rmpad.new_zeros(batch_size * seqlen, dtype=torch.long)
+                        flat_to_packed[indices.long()] = torch.arange(
+                            total_nnz, device=logits_rmpad.device
+                        )
+                        cols = torch.arange(
+                            seqlen - response_length - 1, seqlen - 1, device=logits_rmpad.device
+                        )
+                        rows = torch.arange(batch_size, device=logits_rmpad.device).unsqueeze(1) * seqlen
+                        want_flat = (rows + cols.unsqueeze(0)).reshape(-1)  # (bs*L,)
+                        packed_pos = flat_to_packed[want_flat]
+                        student_resp_logits_rmpad = logits_rmpad.index_select(0, packed_pos).view(
+                            batch_size, response_length, V
+                        )
+
                     # if use_sp: ((total_nnz / sp) + pad) ; if not use_sp: (batch, seqlen)
                     inplace_backward = True
                     if calculate_entropy:
@@ -257,10 +288,21 @@ class DataParallelPPOActor(BasePPOActor):
                         "realized_log_probs": _pad_back_resp(teca_real_rm),
                     }
 
+                if tstar is not None:
+                    tstar_kl = self._tstar_kl_from_logits(
+                        micro_batch, student_resp_logits_rmpad, temperature, float(tstar["gamma"])
+                    )
+
             else:  # not using rmpad and no ulysses sp
                 extra_args = {}
                 if self.use_fused_kernels:
                     extra_args["temperature"] = temperature
+                elif not multi_modal_inputs:
+                    # Everything downstream only consumes logits at the last
+                    # response_length+1 positions; materializing the lm_head
+                    # over the (often much longer) prompt wastes compute and
+                    # memory by seqlen/(L+1)x (e.g. 14.6x at 7000+512).
+                    extra_args["logits_to_keep"] = response_length + 1
                 output = self.actor_module(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
@@ -297,10 +339,61 @@ class DataParallelPPOActor(BasePPOActor):
                             entropy = teca_stats["full_entropy"]
                         else:
                             entropy = verl_F.entropy_from_logits(logits)  # (bsz, response_length)
+                    if tstar is not None:
+                        tstar_kl = self._tstar_kl_from_logits(
+                            micro_batch, logits, temperature, float(tstar["gamma"])
+                        )  # (bsz, response_length)
 
+            if tstar is not None:
+                return entropy, log_probs, tstar_kl
             if calculate_teca_stats:
                 return entropy, log_probs, teca_stats
             return entropy, log_probs
+
+    def _tstar_kl_from_logits(self, micro_batch, student_resp_logits, temperature, gamma):
+        """Per-token forward-KL toward t* ∝ p^{1-γ} q^{γ} e^{A·1[y]}.
+
+        student_resp_logits: (bs, L, V) student logits at response positions
+            (temperature-scaled), REQUIRES GRAD (reused from the main forward).
+        Teacher q comes from a no-grad forward on the skill-augmented inputs
+        (teacher_input_ids/attention_mask/position_ids), sliced to the same
+        response positions. Memory bounded by chunking over flattened positions.
+        """
+        from verl.trainer.ppo.tstar_utils import tstar_correction_loss
+
+        responses = micro_batch["responses"]              # (bs, L)
+        bs, L, V = student_resp_logits.shape
+        with torch.no_grad():
+            t_out = self.actor_module(
+                input_ids=micro_batch["teacher_input_ids"],
+                attention_mask=micro_batch["teacher_attention_mask"],
+                position_ids=micro_batch["teacher_position_ids"],
+                use_cache=False,
+                logits_to_keep=L + 1,  # only materialize lm_head over the L+1 positions we slice
+            )
+            # keep bf16 here; fp32 log_softmax is taken per-chunk below
+            t_logits = t_out.logits[:, -L - 1 : -1, :]  # (bs, L, V)
+            t_logits = t_logits.div(temperature)
+            del t_out
+
+        adv = micro_batch["advantages"].detach()           # (bs, L)
+        sl = student_resp_logits.reshape(bs * L, V)
+        tl = t_logits.reshape(bs * L, V)
+        y = responses.reshape(bs * L)
+        a = adv.reshape(bs * L)
+        n = bs * L
+        chunk = 4096
+        kl_all = student_resp_logits.new_zeros(n)
+        corr_l1_sum = 0.0
+        for st in range(0, n, chunk):
+            en = min(st + chunk, n)
+            with torch.no_grad():
+                lq_c = torch.log_softmax(tl[st:en].float(), dim=-1)
+            kl_c, st_c = tstar_correction_loss(sl[st:en].float(), lq_c, y[st:en], a[st:en], gamma)
+            kl_all[st:en] = kl_c
+            corr_l1_sum += float(st_c["tstar/corr_l1_mean"]) * (en - st)
+        self._tstar_last_corr_l1 = corr_l1_sum / max(n, 1)
+        return kl_all.view(bs, L)
 
     @torch.no_grad()
     def _forward_micro_batch_teca_stats(self, micro_batch, temperature):
@@ -521,6 +614,9 @@ class DataParallelPPOActor(BasePPOActor):
             select_keys.append("ref_log_prob")
         if self.config.get("use_sdl_loss", False) or self.config.get("use_sdar_loss", False):
             select_keys.append("teacher_log_probs")
+        use_tstar = self.config.get("use_tstar_loss", False)
+        if use_tstar:
+            select_keys += ["teacher_input_ids", "teacher_attention_mask", "teacher_position_ids"]
         batch = data.select(batch_keys=select_keys).batch
         has_multi_modal_inputs = "multi_modal_inputs" in data.non_tensor_batch.keys()
 
@@ -580,7 +676,15 @@ class DataParallelPPOActor(BasePPOActor):
                     calculate_entropy = False
                     if entropy_coeff != 0:
                         calculate_entropy = True
-                    entropy, log_prob = self._forward_micro_batch(micro_batch=data, temperature=temperature, calculate_entropy=calculate_entropy)
+                    tstar_kl = None
+                    if use_tstar:
+                        entropy, log_prob, tstar_kl = self._forward_micro_batch(
+                            micro_batch=data, temperature=temperature,
+                            calculate_entropy=calculate_entropy,
+                            tstar={"gamma": self.config.get("tstar_gamma", 0.5)},
+                        )
+                    else:
+                        entropy, log_prob = self._forward_micro_batch(micro_batch=data, temperature=temperature, calculate_entropy=calculate_entropy)
                     
                     loss_mode = self.config.policy_loss.get("loss_mode", "vanilla")
                     if loss_mode == "vanilla":
@@ -650,6 +754,17 @@ class DataParallelPPOActor(BasePPOActor):
                         policy_loss = policy_loss + sdar_loss * sdar_coef
                         metrics.update(sdar_metrics)
                         metrics["sdar/coef"] = sdar_coef
+
+                    if use_tstar and tstar_kl is not None:
+                        tstar_loss = agg_loss(loss_mat=tstar_kl, loss_mask=response_mask, loss_agg_mode=loss_agg_mode)
+                        tstar_coef = self.config.get("tstar_loss_coef", 1.0)
+                        policy_loss = policy_loss + tstar_loss * tstar_coef
+                        with torch.no_grad():
+                            pg_norm = pg_loss.detach().abs().clamp_min(1e-8)
+                            metrics["tstar/loss"] = tstar_loss.detach().item()
+                            metrics["tstar/coef"] = tstar_coef
+                            metrics["tstar/aux_pg_ratio"] = (tstar_loss.detach().abs() * tstar_coef / pg_norm).item()
+                            metrics["tstar/corr_l1_mean"] = getattr(self, "_tstar_last_corr_l1", 0.0)
 
 
                     if self.config.use_dynamic_bsz:

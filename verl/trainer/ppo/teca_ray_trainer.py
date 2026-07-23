@@ -51,6 +51,7 @@ class TECARayTrainer(SkillSDRayTrainer):
         self.teca_require_top1 = teca_cfg.get("require_top1", True)
         self.teca_positive_dh_only = teca_cfg.get("positive_dh_only", True)
         self.teca_top_frac = teca_cfg.get("top_frac", 0.2)
+        self.teca_variant = teca_cfg.get("variant", "pos")
 
     def _compute_teacher_and_candidate_stats(self, batch: DataProto):
         """Teacher forward; student statistics are reused from the old_log_prob
@@ -255,6 +256,7 @@ class TECARayTrainer(SkillSDRayTrainer):
                             require_top1=self.teca_require_top1,
                             positive_dh_only=self.teca_positive_dh_only,
                             top_frac=self.teca_top_frac,
+                            variant=self.teca_variant,
                         )
                         batch.batch["advantages"] = shaped_adv
                         metrics.update(teca_metrics)

@@ -72,6 +72,7 @@ def compute_teca_advantage(
     require_top1: bool = True,
     positive_dh_only: bool = True,
     top_frac: float | None = 0.2,
+    variant: str = "pos",
 ) -> tuple[torch.Tensor, dict]:
     """Additive teacher-entropy advantage shaping.
 
@@ -85,13 +86,25 @@ def compute_teca_advantage(
         beta: shaping strength.
         positive_only: only shape tokens in sequences with positive advantage.
         require_top1: require realized token to be the argmax of BOTH distributions.
-        positive_dh_only: rectify delta_H to max(delta_H, 0) so shaping only ever
-            *adds* credit (reward-only); tokens where the teacher's alternative set
-            is narrower than the student's are left unchanged.
+        positive_dh_only: (only used when variant="pos") rectify delta_H to
+            max(delta_H, 0) so shaping only ever *adds* credit; tokens where the
+            teacher's alternative set is narrower than the student's are left
+            unchanged.
         top_frac: if not None, strong selectivity -- within each row, only the tokens
-            whose delta_H is in the top `top_frac` fraction (among that row's already
-            eligible tokens) are shaped. Concentrates credit onto the few most
-            decisive tokens instead of the ~40% that pass a plain relu. None disables.
+            whose rank-score is in the top `top_frac` fraction (among that row's
+            already eligible tokens) are shaped. Concentrates credit onto the few
+            most decisive tokens instead of the ~40% that pass a plain relu. None
+            disables. The rank-score depends on `variant`.
+        variant: which side(s) of delta_H are eligible and how credit is signed.
+            * "pos" (default, unchanged behaviour): eligible = delta_H>0; rank by
+              delta_H; credit = beta*relu(delta_H). Only rewards positions where the
+              teacher is MORE spread over the non-target candidates than the student.
+            * "abs" (v2_abs, two-sided positive): eligible = delta_H!=0; rank by
+              |delta_H|; credit = beta*|delta_H|. ALSO gives POSITIVE credit to
+              student-high-entropy (delta_H<0) tokens -- any large teacher/student
+              candidate-entropy gap in EITHER direction is treated as informative.
+            * "neg": eligible = delta_H<0; rank by -delta_H; credit = beta*(-delta_H).
+              Rewards only student-high-entropy positions.
 
     Returns:
         shaped advantages (bs, L), metrics dict.
@@ -105,20 +118,32 @@ def compute_teca_advantage(
             eligible &= top1_agree
         if positive_only:
             eligible &= advantages > 0
-        if positive_dh_only:
-            eligible &= delta_h > 0
+
+        # direction filter + per-token rank score + effective (always-additive) dh
+        if variant == "abs":
+            eligible &= delta_h != 0
+            rank_score = delta_h.abs()
+            dh_eff = delta_h.abs()
+        elif variant == "neg":
+            eligible &= delta_h < 0
+            rank_score = -delta_h
+            dh_eff = (-delta_h).clamp(min=0.0)
+        else:  # "pos" -- original behaviour
+            if positive_dh_only:
+                eligible &= delta_h > 0
+            rank_score = delta_h
+            dh_eff = delta_h.clamp(min=0.0) if positive_dh_only else delta_h
 
         if top_frac is not None and 0.0 < top_frac < 1.0:
-            # per-row (1 - top_frac) quantile over that row's eligible delta_H
+            # per-row (1 - top_frac) quantile over that row's eligible rank-score
             keep = torch.zeros_like(eligible)
             for r in range(eligible.size(0)):
                 row_elig = eligible[r]
                 if row_elig.any():
-                    thr = torch.quantile(delta_h[r][row_elig].float(), 1.0 - top_frac)
-                    keep[r] = row_elig & (delta_h[r] >= thr)
+                    thr = torch.quantile(rank_score[r][row_elig].float(), 1.0 - top_frac)
+                    keep[r] = row_elig & (rank_score[r] >= thr)
             eligible = keep
 
-        dh_eff = delta_h.clamp(min=0.0) if positive_dh_only else delta_h
         shaped = advantages + beta * dh_eff * eligible
         shaped = shaped * response_mask
 

@@ -1,0 +1,80 @@
+{
+  "n_tasks": 18,
+  "hs_hi": 0.3,
+  "hs_lo": 0.1,
+  "beta": 0.1,
+  "top_frac": 0.2,
+  "neg_selected_composition": {
+    "total": 1432,
+    "frac_student_collapsed": 0.5656,
+    "frac_student_hesitant": 0.3205
+  },
+  "auc_positive_trajs": {
+    "pos": 0.7368,
+    "neg": 0.6594,
+    "neg_uncertain": 0.5768,
+    "neg_certain": 0.6075,
+    "abs": 0.8582,
+    "abs_uncertain": 0.8056,
+    "pos_plus_negc": 0.7851
+  },
+  "n_trajs": {
+    "pos": 19,
+    "neg": 19,
+    "neg_uncertain": 19,
+    "neg_certain": 19,
+    "abs": 19,
+    "abs_uncertain": 19,
+    "pos_plus_negc": 19
+  },
+  "vs_pos_bootstrap": {
+    "neg": {
+      "mean": -0.0773,
+      "ci95": [
+        -0.3246,
+        0.1813
+      ],
+      "p_leq_0": 0.7267
+    },
+    "neg_uncertain": {
+      "mean": -0.1598,
+      "ci95": [
+        -0.3648,
+        0.0621
+      ],
+      "p_leq_0": 0.9251
+    },
+    "neg_certain": {
+      "mean": -0.1281,
+      "ci95": [
+        -0.3531,
+        0.1096
+      ],
+      "p_leq_0": 0.8593
+    },
+    "abs": {
+      "mean": 0.1211,
+      "ci95": [
+        0.0058,
+        0.25
+      ],
+      "p_leq_0": 0.0191
+    },
+    "abs_uncertain": {
+      "mean": 0.0689,
+      "ci95": [
+        0.0132,
+        0.1272
+      ],
+      "p_leq_0": 0.0065
+    },
+    "pos_plus_negc": {
+      "mean": 0.0476,
+      "ci95": [
+        -0.1096,
+        0.1842
+      ],
+      "p_leq_0": 0.2569
+    }
+  }
+}

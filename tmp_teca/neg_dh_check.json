@@ -1,0 +1,375 @@
+{
+  "n_tasks": 18,
+  "n_positive_trajs": 28,
+  "n_trajs_auc": 77,
+  "beta": 0.1,
+  "top_frac": 0.2,
+  "methods": {
+    "teca_pos": {
+      "auc_all": 0.5584,
+      "auc_positive_trajs": 0.7368,
+      "n_pos": 19
+    },
+    "teca_neg": {
+      "auc_all": 0.5393,
+      "auc_positive_trajs": 0.6594,
+      "n_pos": 19
+    },
+    "teca_abs": {
+      "auc_all": 0.5884,
+      "auc_positive_trajs": 0.8582,
+      "n_pos": 19
+    }
+  },
+  "neg_population": {
+    "action_seg_frac": 0.2046,
+    "mean_teacher_full_entropy": 0.375,
+    "mean_student_full_entropy": 0.3326,
+    "corr_negdh_vs_student_entropy": -0.1906,
+    "n_selected": 1432
+  },
+  "pos_population": {
+    "action_seg_frac": 0.1549,
+    "mean_teacher_full_entropy": 0.4594,
+    "mean_student_full_entropy": 0.3849,
+    "n_selected": 1885
+  },
+  "examples_neg_dh": [
+    {
+      "tok": " shirts",
+      "neg_dh": 0.513,
+      "hs": 0.0,
+      "ht": 0.001,
+      "seg": "think",
+      "ctx": " machine washable men's dress shirts in purple"
+    },
+    {
+      "tok": " a",
+      "neg_dh": 0.761,
+      "hs": 1.661,
+      "ht": 1.131,
+      "seg": "think",
+      "ctx": " or cotton heather fabrics, a classic fit"
+    },
+    {
+      "tok": ",",
+      "neg_dh": 0.344,
+      "hs": 0.007,
+      "ht": 0.025,
+      "seg": "think",
+      "ctx": " classic fit, needle sleeve design, and a"
+    },
+    {
+      "tok": " a",
+      "neg_dh": 1.076,
+      "hs": 1.033,
+      "ht": 0.969,
+      "seg": "think",
+      "ctx": ", needle sleeve design, and a size "
+    },
+    {
+      "tok": ".",
+      "neg_dh": 0.833,
+      "hs": 0.011,
+      "ht": 0.016,
+      "seg": "think",
+      "ctx": " be less than $30. The current"
+    },
+    {
+      "tok": " provide",
+      "neg_dh": 0.365,
+      "hs": 1.237,
+      "ht": 1.838,
+      "seg": "think",
+      "ctx": " reflects this request but does not provide any specific"
+    },
+    {
+      "tok": " a",
+      "neg_dh": 0.918,
+      "hs": 0.006,
+      "ht": 0.295,
+      "seg": "think",
+      "ctx": " most logical step is to perform a search using"
+    },
+    {
+      "tok": " search",
+      "neg_dh": 0.629,
+      "hs": 0.083,
+      "ht": 0.616,
+      "seg": "think",
+      "ctx": " logical step is to perform a search using the"
+    },
+    {
+      "tok": ">",
+      "neg_dh": 0.669,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "action",
+      "ctx": " 3x-large]</action>"
+    },
+    {
+      "tok": ",",
+      "neg_dh": 0.407,
+      "hs": 0.004,
+      "ht": 0.009,
+      "seg": "think",
+      "ctx": "athers cotton, cotton heather, needle sleeve"
+    },
+    {
+      "tok": ",",
+      "neg_dh": 0.598,
+      "hs": 0.004,
+      "ht": 0.006,
+      "seg": "think",
+      "ctx": " cotton heather, needle sleeve, classic fit"
+    },
+    {
+      "tok": " price",
+      "neg_dh": 0.408,
+      "hs": 0.014,
+      "ht": 0.024,
+      "seg": "think",
+      "ctx": "3x-large, with a price lower than"
+    },
+    {
+      "tok": " to",
+      "neg_dh": 0.462,
+      "hs": 0.607,
+      "ht": 1.247,
+      "seg": "think",
+      "ctx": "P3356 seems to match most"
+    },
+    {
+      "tok": " the",
+      "neg_dh": 0.476,
+      "hs": 1.214,
+      "ht": 0.987,
+      "seg": "think",
+      "ctx": ".99, which fits the price requirement"
+    },
+    {
+      "tok": "</",
+      "neg_dh": 1.423,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": " seems like the best choice. </think>  "
+    },
+    {
+      "tok": ">",
+      "neg_dh": 1.375,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "action",
+      "ctx": "3356]</action>"
+    },
+    {
+      "tok": " he",
+      "neg_dh": 0.382,
+      "hs": 0.126,
+      "ht": 0.313,
+      "seg": "think",
+      "ctx": " men's dress shirt with polyester heathers,"
+    },
+    {
+      "tok": " than",
+      "neg_dh": 0.659,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": "x-large with a price lower than $3"
+    },
+    {
+      "tok": "0",
+      "neg_dh": 0.423,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": " a price lower than $30. The"
+    },
+    {
+      "tok": " purple",
+      "neg_dh": 0.386,
+      "hs": 0.301,
+      "ht": 0.697,
+      "seg": "action",
+      "ctx": "men dress shirt polyester heather purple 3"
+    },
+    {
+      "tok": ">",
+      "neg_dh": 2.23,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "action",
+      "ctx": " 3x-large]</action>"
+    },
+    {
+      "tok": " needle",
+      "neg_dh": 0.523,
+      "hs": 1.053,
+      "ht": 1.176,
+      "seg": "think",
+      "ctx": ", cotton heather), a needle sleeve,"
+    },
+    {
+      "tok": " a",
+      "neg_dh": 0.46,
+      "hs": 1.173,
+      "ht": 0.96,
+      "seg": "think",
+      "ctx": " fit, purple color, and a 3"
+    },
+    {
+      "tok": " than",
+      "neg_dh": 0.651,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": "-large size with a price lower than $3"
+    },
+    {
+      "tok": ".",
+      "neg_dh": 0.52,
+      "hs": 0.001,
+      "ht": 0.001,
+      "seg": "think",
+      "ctx": " price lower than $30.00"
+    },
+    {
+      "tok": ".",
+      "neg_dh": 1.003,
+      "hs": 0.004,
+      "ht": 0.032,
+      "seg": "think",
+      "ctx": " $30.00. From the"
+    },
+    {
+      "tok": " is",
+      "neg_dh": 0.444,
+      "hs": 0.155,
+      "ht": 0.191,
+      "seg": "think",
+      "ctx": "3356, which is a polo"
+    },
+    {
+      "tok": "0",
+      "neg_dh": 1.447,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": " than $30.00. We"
+    },
+    {
+      "tok": " men",
+      "neg_dh": 0.6,
+      "hs": 0.906,
+      "ht": 0.985,
+      "seg": "think",
+      "ctx": " the instruction, we need a men's dress"
+    },
+    {
+      "tok": " dress",
+      "neg_dh": 0.607,
+      "hs": 0.077,
+      "ht": 0.107,
+      "seg": "think",
+      "ctx": ", we need a men's dress shirt with"
+    },
+    {
+      "tok": " polyester",
+      "neg_dh": 0.812,
+      "hs": 0.083,
+      "ht": 0.181,
+      "seg": "think",
+      "ctx": " shirt with specific features such as polyester heathers"
+    },
+    {
+      "tok": " ",
+      "neg_dh": 0.421,
+      "hs": 0.002,
+      "ht": 0.005,
+      "seg": "think",
+      "ctx": ", purple color, and size 3x"
+    },
+    {
+      "tok": " that",
+      "neg_dh": 0.554,
+      "hs": 1.349,
+      "ht": 1.613,
+      "seg": "think",
+      "ctx": " The current observation shows a product that matches most"
+    },
+    {
+      "tok": " ",
+      "neg_dh": 1.018,
+      "hs": 0.039,
+      "ht": 0.169,
+      "seg": "think",
+      "ctx": " including the color purple and size 3x"
+    },
+    {
+      "tok": " requirement",
+      "neg_dh": 1.4,
+      "hs": 0.505,
+      "ht": 0.986,
+      "seg": "think",
+      "ctx": " it does not meet the price requirement as it"
+    },
+    {
+      "tok": ">",
+      "neg_dh": 1.955,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "action",
+      "ctx": " 3x-large]</action>"
+    },
+    {
+      "tok": " for",
+      "neg_dh": 0.594,
+      "hs": 0.007,
+      "ht": 0.011,
+      "seg": "think",
+      "ctx": "<think> The instruction asks for men's"
+    },
+    {
+      "tok": " dress",
+      "neg_dh": 0.602,
+      "hs": 0.057,
+      "ht": 0.041,
+      "seg": "think",
+      "ctx": "The instruction asks for men's dress shirts with"
+    },
+    {
+      "tok": " polyester",
+      "neg_dh": 1.238,
+      "hs": 0.205,
+      "ht": 0.258,
+      "seg": "think",
+      "ctx": " shirts with specific characteristics such as polyester heathers"
+    },
+    {
+      "tok": " than",
+      "neg_dh": 0.466,
+      "hs": 0.0,
+      "ht": 0.0,
+      "seg": "think",
+      "ctx": "-large size with a price lower than $3"
+    }
+  ],
+  "pos_minus_neg": {
+    "mean": 0.0773,
+    "ci95": [
+      -0.1813,
+      0.3246
+    ],
+    "p_leq_0": 0.2747
+  },
+  "pos_minus_abs": {
+    "mean": -0.1222,
+    "ci95": [
+      -0.25,
+      -0.0073
+    ],
+    "p_leq_0": 0.9838
+  }
+}
