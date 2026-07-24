@@ -28,12 +28,13 @@ if __name__ == '__main__':
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--train_data_size', default=256, type=int)
     parser.add_argument('--val_data_size', default=256, type=int)
+    parser.add_argument('--data_source', default='hiyouga/geometry3k')
 
     args = parser.parse_args()
     print(f"processing data for mode: {args.mode}")
     args.local_dir = os.path.join(args.local_dir, args.mode)
 
-    data_source = 'hiyouga/geometry3k'
+    data_source = args.data_source
     """
     **NOTE**: This is a frequently asked question.
     We do NOT use the data in 'hiyouga/geometry3k', instead we only use it to indicate the modality and the data size.

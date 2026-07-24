@@ -1,4 +1,10 @@
 set -x
+
+# Activate conda environment and ensure its bin is first in PATH
+source $(conda info --base)/etc/profile.d/conda.sh
+conda activate sdar_alfworld
+export PATH="$CONDA_PREFIX/bin:$PATH"
+
 ENGINE=${1:-vllm}
 
 num_cpus_per_env_worker=0.1
@@ -12,19 +18,21 @@ train_data_size=16
 val_data_size=128
 group_size=8
 experiment_name="sdar_qwen2.5_3b_coef${sdar_coef}_beta${gate_beta}_skillall${skill_all}"
-export ALFWORLD_DATA=$HOME/data/alfworld
+export ALFWORLD_DATA=/personal/datasets/alfworld
 
-export WANDB_API_KEY=your_key_here
+export WANDB_API_KEY=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
 
-python3 -m examples.data_preprocess.prepare \
-    --mode 'text' \
-    --train_data_size $train_data_size \
-    --val_data_size $val_data_size
+# python3 examples/data_preprocess/prepare.py \
+#     --mode 'text' \
+#     --data_source /personal/datasets/geometry3k \
+#     --local_dir /personal/datasets/verl-agent \
+#     --train_data_size $train_data_size \
+#     --val_data_size $val_data_size
 
 python3 -m verl.trainer.main_sdar \
     algorithm.adv_estimator=grpo \
-    data.train_files=$HOME/data/verl-agent/text/train.parquet \
-    data.val_files=$HOME/data/verl-agent/text/test.parquet \
+    data.train_files=/personal/datasets/verl-agent/text/train.parquet \
+    data.val_files=/personal/datasets/verl-agent/text/test.parquet \
     data.train_batch_size=$train_data_size \
     data.val_batch_size=$val_data_size \
     data.max_prompt_length=2048 \
@@ -73,7 +81,10 @@ python3 -m verl.trainer.main_sdar \
     trainer.n_gpus_per_node=8 \
     trainer.ray_wait_register_center_timeout=600 \
     trainer.nnodes=1 \
-    trainer.save_freq=-1 \
+    trainer.save_freq=50 \
+    trainer.max_actor_ckpt_to_keep=1 \
+    trainer.max_critic_ckpt_to_keep=1 \
     trainer.test_freq=5 \
     trainer.total_epochs=150 \
+    trainer.total_training_steps=200 \
     trainer.val_before_train=True $@
