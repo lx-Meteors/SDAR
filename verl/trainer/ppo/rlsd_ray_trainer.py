@@ -107,16 +107,26 @@ def build_teacher_batch(
         else:
             skill_text = skill_provider.get_privileged_info_from_prompt(prompt_text)
 
-        # Construct teacher prompt: prepend skill as a system message
+        # Construct teacher prompt while preserving privileged information under
+        # the fixed prompt budget.  Blind left truncation would remove the
+        # prepended skill whenever the student prompt is already near the limit.
         skill_prefix = f"[Privileged Skill Information]\n{skill_text}\n\n"
-        teacher_prompt_text = skill_prefix + prompt_text
+        skill_prefix_ids = tokenizer.encode(skill_prefix, add_special_tokens=False)
+        original_prompt_token_ids = valid_prompt_ids.tolist()
 
-        # Tokenize the teacher prompt
-        teacher_prompt_ids = tokenizer.encode(teacher_prompt_text, add_special_tokens=False)
-
-        # Truncate if needed (left truncation to keep the end of prompt)
-        if len(teacher_prompt_ids) > max_prompt_length:
-            teacher_prompt_ids = teacher_prompt_ids[-max_prompt_length:]
+        # Reserve up to half the budget for the prompt tail (which contains the
+        # latest environment observation), then use every remaining token for
+        # privileged skill context.  Short skills naturally leave more room for
+        # the original prompt.
+        reserved_prompt_tokens = min(len(original_prompt_token_ids), max_prompt_length // 2)
+        skill_budget = max_prompt_length - reserved_prompt_tokens
+        skill_prefix_ids = skill_prefix_ids[:skill_budget]
+        prompt_budget = max_prompt_length - len(skill_prefix_ids)
+        if prompt_budget > 0:
+            original_prompt_token_ids = original_prompt_token_ids[-prompt_budget:]
+        else:
+            original_prompt_token_ids = []
+        teacher_prompt_ids = skill_prefix_ids + original_prompt_token_ids
 
         teacher_prompt_ids = torch.tensor(teacher_prompt_ids, dtype=torch.long)
         actual_prompt_len = len(teacher_prompt_ids)

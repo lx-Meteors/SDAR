@@ -73,6 +73,54 @@ class DataParallelPPOActor(BasePPOActor):
         )
         self.device_name = get_device_name()
 
+    def _extract_decision_repr(
+        self,
+        hidden_states,
+        *,
+        response_length: int,
+        layers: str,
+        indices=None,
+        batch_size: int | None = None,
+        seqlen: int | None = None,
+        pad_size: int = 0,
+    ) -> torch.Tensor:
+        """Extract hidden states immediately before the first action token."""
+        from verl.trainer.ppo.latent_flow_utils import get_hidden_state_indices
+
+        layer_indices = get_hidden_state_indices(len(hidden_states), layers)
+        prompt_end = seqlen - response_length - 1
+        if prompt_end < 0:
+            raise ValueError(
+                f"cannot extract decision state: seqlen={seqlen}, response_length={response_length}"
+            )
+
+        decision_reprs = []
+        for layer_idx in layer_indices:
+            layer_hidden = hidden_states[layer_idx]
+            if self.use_remove_padding:
+                if indices is None or batch_size is None or seqlen is None:
+                    raise ValueError("remove-padding decision extraction requires indices/batch_size/seqlen")
+                if layer_hidden.dim() == 3:
+                    layer_hidden = layer_hidden.squeeze(0)
+                if self.use_ulysses_sp:
+                    layer_hidden = gather_outpus_and_unpad(
+                        layer_hidden,
+                        gather_dim=0,
+                        unpad_dim=0,
+                        padding_size=pad_size,
+                    )
+                layer_hidden = pad_input(
+                    hidden_states=layer_hidden,
+                    indices=indices,
+                    batch=batch_size,
+                    seqlen=seqlen,
+                )
+            decision_reprs.append(layer_hidden[:, prompt_end, :])
+
+        if len(decision_reprs) == 1:
+            return decision_reprs[0]
+        return torch.stack(decision_reprs, dim=1)
+
     @staticmethod
     @torch.no_grad()
     def _teca_stats_from_logits(logits_2d, rolled_ids, chunk_size=4096):
@@ -100,7 +148,13 @@ class DataParallelPPOActor(BasePPOActor):
         return torch.cat(entropy_lst), torch.cat(argmax_lst), torch.cat(realized_lst)
 
     def _forward_micro_batch(
-        self, micro_batch, temperature, calculate_entropy=False, calculate_teca_stats=False
+        self,
+        micro_batch,
+        temperature,
+        calculate_entropy=False,
+        calculate_teca_stats=False,
+        return_decision_repr=False,
+        latent_flow_layers="last",
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
@@ -108,6 +162,11 @@ class DataParallelPPOActor(BasePPOActor):
             log_probs: # (bs, response_len)
         """
         response_length = micro_batch["responses"].size(-1)
+        if return_decision_repr and calculate_teca_stats:
+            raise ValueError("decision representation and TECA statistics cannot be requested together")
+        if return_decision_repr and self.use_fused_kernels:
+            raise NotImplementedError("latent-flow decision representations do not support fused kernels")
+        decision_repr = None
         multi_modal_inputs = {}
         if "multi_modal_inputs" in micro_batch:
             for key in micro_batch["multi_modal_inputs"][0].keys():
@@ -136,6 +195,7 @@ class DataParallelPPOActor(BasePPOActor):
                 input_ids_rmpad_rolled = torch.roll(input_ids_rmpad, shifts=-1, dims=1)  # (1, total_nnz)
 
                 # pad and slice the inputs if sp > 1
+                pad_size = 0
                 if self.use_ulysses_sp:
                     is_vlm_model = "multi_modal_inputs" in micro_batch
                     if is_vlm_model:
@@ -164,6 +224,8 @@ class DataParallelPPOActor(BasePPOActor):
                 if self.use_fused_kernels:
                     extra_args["temperature"] = temperature
                     extra_args["return_dict"] = True
+                if return_decision_repr:
+                    extra_args["output_hidden_states"] = True
 
                 output = self.actor_module(
                     input_ids=input_ids_rmpad,
@@ -173,6 +235,17 @@ class DataParallelPPOActor(BasePPOActor):
                     use_cache=False,
                     **extra_args,
                 )  # prevent model thinks we are generating
+
+                if return_decision_repr:
+                    decision_repr = self._extract_decision_repr(
+                        output.hidden_states,
+                        response_length=response_length,
+                        layers=latent_flow_layers,
+                        indices=indices,
+                        batch_size=batch_size,
+                        seqlen=seqlen,
+                        pad_size=pad_size,
+                    )
 
                 if self.use_fused_kernels:
                     log_probs = output.log_probs.squeeze(0)  # (total_nnz,)
@@ -261,6 +334,8 @@ class DataParallelPPOActor(BasePPOActor):
                 extra_args = {}
                 if self.use_fused_kernels:
                     extra_args["temperature"] = temperature
+                if return_decision_repr:
+                    extra_args["output_hidden_states"] = True
                 output = self.actor_module(
                     input_ids=input_ids,
                     attention_mask=attention_mask,
@@ -269,6 +344,15 @@ class DataParallelPPOActor(BasePPOActor):
                     use_cache=False,
                     **extra_args,
                 )  # prevent model thinks we are generating
+
+                if return_decision_repr:
+                    decision_repr = self._extract_decision_repr(
+                        output.hidden_states,
+                        response_length=response_length,
+                        layers=latent_flow_layers,
+                        batch_size=batch_size,
+                        seqlen=seqlen,
+                    )
 
                 if self.use_fused_kernels:
                     if calculate_teca_stats:
@@ -300,6 +384,8 @@ class DataParallelPPOActor(BasePPOActor):
 
             if calculate_teca_stats:
                 return entropy, log_probs, teca_stats
+            if return_decision_repr:
+                return entropy, log_probs, decision_repr
             return entropy, log_probs
 
     @torch.no_grad()
@@ -451,10 +537,16 @@ class DataParallelPPOActor(BasePPOActor):
         temperature = data.meta_info["temperature"]  # temperature must be in the data.meta_info to avoid silent error
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
         calculate_teca_stats = data.meta_info.get("calculate_teca_stats", False)
+        return_decision_repr = data.meta_info.get("return_decision_repr", False)
+        latent_flow_layers = data.meta_info.get("latent_flow_layers", "last")
 
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids"]
         batch = data.select(batch_keys=select_keys).batch
         has_multi_modal_inputs = "multi_modal_inputs" in data.non_tensor_batch.keys()
+        if return_decision_repr and has_multi_modal_inputs:
+            raise NotImplementedError(
+                "latent-flow decision representations do not yet support multi-modal inputs"
+            )
 
         if has_multi_modal_inputs:
             num_micro_batches = data.batch.batch_size[0] // micro_batch_size
@@ -470,6 +562,7 @@ class DataParallelPPOActor(BasePPOActor):
         log_probs_lst = []
         entropy_lst = []
         teca_stats_lst = []
+        decision_repr_lst = []
         for micro_batch in micro_batches:
             if isinstance(micro_batch, DataProto):
                 micro_batch = {**micro_batch.batch, **micro_batch.non_tensor_batch}
@@ -480,6 +573,15 @@ class DataParallelPPOActor(BasePPOActor):
                         calculate_entropy=calculate_entropy, calculate_teca_stats=True,
                     )
                     teca_stats_lst.append(teca_stats)
+                elif return_decision_repr:
+                    entropy, log_probs, decision_repr = self._forward_micro_batch(
+                        micro_batch,
+                        temperature=temperature,
+                        calculate_entropy=calculate_entropy,
+                        return_decision_repr=True,
+                        latent_flow_layers=latent_flow_layers,
+                    )
+                    decision_repr_lst.append(decision_repr)
                 else:
                     entropy, log_probs = self._forward_micro_batch(micro_batch, temperature=temperature, calculate_entropy=calculate_entropy)
             log_probs_lst.append(log_probs)
@@ -490,11 +592,18 @@ class DataParallelPPOActor(BasePPOActor):
         entropys = None
         if calculate_entropy:
             entropys = torch.concat(entropy_lst, dim=0)
+        decision_repr = None
+        if return_decision_repr:
+            decision_repr = torch.concat(decision_repr_lst, dim=0)
         if use_dynamic_bsz:
             indices = list(itertools.chain.from_iterable(indices))
             assert len(indices) == log_probs.size(0), f"{len(indices)} vs. {log_probs.size()}"
             revert_indices = torch.tensor(get_reverse_idx(indices), dtype=torch.long)
             log_probs = log_probs[revert_indices]
+            if entropys is not None:
+                entropys = entropys[revert_indices]
+            if decision_repr is not None:
+                decision_repr = decision_repr[revert_indices]
             if calculate_teca_stats:
                 raise NotImplementedError("TECA stats with use_dynamic_bsz is not supported")
 
@@ -503,6 +612,9 @@ class DataParallelPPOActor(BasePPOActor):
                 key: torch.concat([s[key] for s in teca_stats_lst], dim=0) for key in teca_stats_lst[0].keys()
             }
             return log_probs, entropys, teca_stats
+
+        if return_decision_repr:
+            return log_probs, entropys, decision_repr
 
         return log_probs, entropys
 
@@ -521,8 +633,25 @@ class DataParallelPPOActor(BasePPOActor):
             select_keys.append("ref_log_prob")
         if self.config.get("use_sdl_loss", False) or self.config.get("use_sdar_loss", False):
             select_keys.append("teacher_log_probs")
+        use_latent_flow = self.config.get("use_latent_flow_loss", False)
+        if use_latent_flow:
+            select_keys.extend(
+                [
+                    "teacher_flow",
+                    "privilege_gate",
+                    "flow_mask",
+                    "next_responses",
+                    "next_input_ids",
+                    "next_attention_mask",
+                    "next_position_ids",
+                ]
+            )
         batch = data.select(batch_keys=select_keys).batch
         has_multi_modal_inputs = "multi_modal_inputs" in data.non_tensor_batch.keys()
+        if use_latent_flow and has_multi_modal_inputs:
+            raise NotImplementedError(
+                "latent-flow actor updates do not yet support multi-modal next-step inputs"
+            )
 
         # Split to make minibatch iterator for updating the actor
         # See PPO paper for details. https://arxiv.org/abs/1707.06347
@@ -580,7 +709,20 @@ class DataParallelPPOActor(BasePPOActor):
                     calculate_entropy = False
                     if entropy_coeff != 0:
                         calculate_entropy = True
-                    entropy, log_prob = self._forward_micro_batch(micro_batch=data, temperature=temperature, calculate_entropy=calculate_entropy)
+                    if use_latent_flow:
+                        entropy, log_prob, current_decision_repr = self._forward_micro_batch(
+                            micro_batch=data,
+                            temperature=temperature,
+                            calculate_entropy=calculate_entropy,
+                            return_decision_repr=True,
+                            latent_flow_layers=self.config.get("latent_flow_layers", "last"),
+                        )
+                    else:
+                        entropy, log_prob = self._forward_micro_batch(
+                            micro_batch=data,
+                            temperature=temperature,
+                            calculate_entropy=calculate_entropy,
+                        )
                     
                     loss_mode = self.config.policy_loss.get("loss_mode", "vanilla")
                     if loss_mode == "vanilla":
@@ -650,6 +792,35 @@ class DataParallelPPOActor(BasePPOActor):
                         policy_loss = policy_loss + sdar_loss * sdar_coef
                         metrics.update(sdar_metrics)
                         metrics["sdar/coef"] = sdar_coef
+
+                    if use_latent_flow:
+                        next_micro_batch = {
+                            "responses": data["next_responses"],
+                            "input_ids": data["next_input_ids"],
+                            "attention_mask": data["next_attention_mask"],
+                            "position_ids": data["next_position_ids"],
+                        }
+                        _, _, next_decision_repr = self._forward_micro_batch(
+                            micro_batch=next_micro_batch,
+                            temperature=temperature,
+                            calculate_entropy=False,
+                            return_decision_repr=True,
+                            latent_flow_layers=self.config.get("latent_flow_layers", "last"),
+                        )
+
+                        from verl.trainer.ppo.latent_flow_utils import compute_latent_flow_loss
+
+                        latent_flow_loss, latent_flow_metrics = compute_latent_flow_loss(
+                            student_current_repr=current_decision_repr,
+                            student_next_repr=next_decision_repr,
+                            teacher_flow=data["teacher_flow"],
+                            flow_mask=data["flow_mask"],
+                            privilege_gate=data["privilege_gate"],
+                        )
+                        latent_flow_coef = self.config.get("latent_flow_loss_coef", 0.1)
+                        policy_loss = policy_loss + latent_flow_coef * latent_flow_loss
+                        latent_flow_metrics["latent_flow/coef"] = latent_flow_coef
+                        append_to_dict(metrics, latent_flow_metrics)
 
 
                     if self.config.use_dynamic_bsz:

@@ -689,6 +689,7 @@ class ActorRolloutRefWorker(Worker):
         data.meta_info["temperature"] = self.config.rollout.temperature
         # perform recompute log_prob
         calculate_teca_stats = data.meta_info.get("calculate_teca_stats", False)
+        return_decision_repr = data.meta_info.get("return_decision_repr", False)
         with self.ulysses_sharding_manager:
             data = self.ulysses_sharding_manager.preprocess_data(data)
             with adapter_ctx:
@@ -696,9 +697,15 @@ class ActorRolloutRefWorker(Worker):
                     # TECA: same forward additionally yields full-vocab entropy /
                     # argmax / realized log-probs (saves a dedicated student pass)
                     output, entropys, teca_stats = self.actor.compute_log_prob(data=data, calculate_entropy=True)
+                elif return_decision_repr:
+                    output, entropys, decision_repr = self.actor.compute_log_prob(
+                        data=data, calculate_entropy=True
+                    )
                 else:
                     output, entropys = self.actor.compute_log_prob(data=data, calculate_entropy=True)
             tensors = {"old_log_probs": output, "entropys": entropys}
+            if return_decision_repr:
+                tensors["decision_repr"] = decision_repr
             if calculate_teca_stats:
                 tensors.update(
                     {

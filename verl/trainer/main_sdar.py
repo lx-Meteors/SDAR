@@ -1,7 +1,9 @@
-"""
-Main entry point for SDAR (Confidence-Gated Teacher Distillation) training.
-Reuses SkillSDRayTrainer for teacher forward pass, but replaces the SDL loss
-with a confidence-gated distillation loss in the actor.
+"""Main entry point for privileged environment-step latent-flow distillation.
+
+The default ``algorithm.sdar.mode=latent_flow`` aligns decision-representation
+transitions between consecutive environment steps, gated by the privileged
+teacher's action-likelihood improvement.  ``mode=logprob`` retains the legacy
+confidence-gated sampled-token SDAR objective for ablations.
 """
 
 import hydra
@@ -44,10 +46,41 @@ class SDARTaskRunner:
         OmegaConf.resolve(config)
 
         sdar_cfg = config.algorithm.get("sdar", {})
+        sdar_mode = sdar_cfg.get("mode", "latent_flow")
+        if sdar_mode not in ("latent_flow", "logprob"):
+            raise ValueError(f"algorithm.sdar.mode must be 'latent_flow' or 'logprob', got {sdar_mode!r}")
         with open_dict(config):
-            config.actor_rollout_ref.actor.use_sdar_loss = True
+            config.actor_rollout_ref.actor.use_sdar_loss = sdar_mode == "logprob"
             config.actor_rollout_ref.actor.sdar_loss_coef = sdar_cfg.get("sdar_coef", 0.1)
             config.actor_rollout_ref.actor.sdar_gate_beta = sdar_cfg.get("gate_beta", 5.0)
+            config.actor_rollout_ref.actor.use_latent_flow_loss = sdar_mode == "latent_flow"
+            config.actor_rollout_ref.actor.latent_flow_loss_coef = sdar_cfg.get(
+                "flow_coef", sdar_cfg.get("sdar_coef", 0.1)
+            )
+            config.actor_rollout_ref.actor.latent_flow_layers = sdar_cfg.get("flow_layers", "last")
+            config.actor_rollout_ref.actor.latent_flow_gate_mode = sdar_cfg.get(
+                "gate_mode", "positive_tanh"
+            )
+
+        if sdar_mode == "latent_flow":
+            from verl.trainer.ppo.latent_flow_utils import (
+                VALID_PRIVILEGE_GATE_MODES,
+                validate_latent_flow_layers,
+            )
+
+            validate_latent_flow_layers(config.actor_rollout_ref.actor.latent_flow_layers)
+            if config.actor_rollout_ref.actor.latent_flow_gate_mode not in VALID_PRIVILEGE_GATE_MODES:
+                raise ValueError(
+                    "algorithm.sdar.gate_mode must be one of "
+                    f"{VALID_PRIVILEGE_GATE_MODES}, got "
+                    f"{config.actor_rollout_ref.actor.latent_flow_gate_mode!r}"
+                )
+            if config.actor_rollout_ref.actor.strategy not in ("fsdp", "fsdp2"):
+                raise NotImplementedError("latent-flow SDAR currently supports FSDP/FSDP2 only")
+            if config.actor_rollout_ref.actor.get("ulysses_sequence_parallel_size", 1) != 1:
+                raise NotImplementedError("latent-flow SDAR currently requires ulysses_sequence_parallel_size=1")
+            if config.actor_rollout_ref.model.get("use_fused_kernels", False):
+                raise NotImplementedError("latent-flow SDAR does not support fused actor kernels")
 
         local_path = copy_to_local(
             config.actor_rollout_ref.model.path,
@@ -161,7 +194,13 @@ class SDARTaskRunner:
         print(f"[SDAR] Loaded skills from {skills_dir}")
         print(f"[SDAR] Available skills: {list(skill_provider.skill_contents.keys())}")
         print(f"[SDAR] Task-to-skill mapping: {skill_provider.task_to_skill}")
-        print(f"[SDAR] sdar_coef: {config.actor_rollout_ref.actor.sdar_loss_coef}")
+        print(f"[SDAR] mode: {sdar_mode}")
+        if sdar_mode == "latent_flow":
+            print(f"[SDAR] flow_coef: {config.actor_rollout_ref.actor.latent_flow_loss_coef}")
+            print(f"[SDAR] flow_layers: {config.actor_rollout_ref.actor.latent_flow_layers}")
+            print(f"[SDAR] relevance gate: {config.actor_rollout_ref.actor.latent_flow_gate_mode}")
+        else:
+            print(f"[SDAR] sdar_coef: {config.actor_rollout_ref.actor.sdar_loss_coef}")
         print(f"[SDAR] gate_beta: {config.actor_rollout_ref.actor.sdar_gate_beta}")
 
         from verl.trainer.ppo.skillsd_ray_trainer import SkillSDRayTrainer

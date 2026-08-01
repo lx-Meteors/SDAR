@@ -5,22 +5,21 @@ ENGINE=${1:-vllm}
 
 num_cpus_per_env_worker=0.1
 
-# SDAR hyperparameters
-sdar_coef=0.01
+# Environment-step latent-flow SDAR hyperparameters
+flow_coef=0.1
 gate_beta=5.0
+flow_layers=last
+gate_mode=positive_tanh
 skill_all=false
 
-# Only parallelism is changed vs the original run_webshop_3b.sh:
-#   n_gpus_per_node: 2 -> 4
-#   rollout.tensor_model_parallel_size: 2 -> 1
-# All training hyperparameters (batch sizes, lr, KL, etc.) are IDENTICAL to
-# the original, so RL learning dynamics are unchanged; this is pure speedup.
+# Four-GPU latent-flow run.  Relative to the two-GPU environment setup,
+# n_gpus_per_node is 4 and rollout tensor parallelism is 1.
 n_gpus=4
 train_data_size=16
 val_data_size=128
 group_size=8
 ppo_mini_batch_size=64
-experiment_name="sdar_qwen2.5_3b_coef${sdar_coef}_beta${gate_beta}_skillall${skill_all}_4gpu"
+experiment_name="latent_flow_qwen2.5_3b_coef${flow_coef}_beta${gate_beta}_${flow_layers}_skillall${skill_all}_4gpu"
 export WANDB_API_KEY=${WANDB_API_KEY:-your_key_here}
 
 python3 -m examples.data_preprocess.prepare \
@@ -64,8 +63,11 @@ python3 -m verl.trainer.main_sdar \
     actor_rollout_ref.actor.use_invalid_action_penalty=True \
     actor_rollout_ref.actor.invalid_action_penalty_coef=0.1 \
     algorithm.use_kl_in_reward=False \
-    +algorithm.sdar.sdar_coef=$sdar_coef \
+    +algorithm.sdar.mode=latent_flow \
+    +algorithm.sdar.flow_coef=$flow_coef \
     +algorithm.sdar.gate_beta=$gate_beta \
+    +algorithm.sdar.flow_layers=$flow_layers \
+    +algorithm.sdar.gate_mode=$gate_mode \
     +algorithm.sdar.skills_dir=skills/webshop \
     +algorithm.sdar.skill_all=$skill_all \
     env.env_name=Webshop \

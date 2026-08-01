@@ -53,6 +53,7 @@ class SkillSDRayTrainer(RLSDRayTrainer):
         skillsd_cfg = self.config.algorithm.get("skillsd", {})
         self.sdl_lambda = skillsd_cfg.get("sdl_lambda", 0.1)
         self.sdl_warmdown_steps = skillsd_cfg.get("warmdown_steps", -1)
+        self.use_latent_flow = self.config.actor_rollout_ref.actor.get("use_latent_flow_loss", False)
 
     def _get_sdl_lambda(self, step: int) -> float:
         if self.sdl_warmdown_steps <= 0:
@@ -60,6 +61,66 @@ class SkillSDRayTrainer(RLSDRayTrainer):
         if step >= self.sdl_warmdown_steps:
             return 0.0
         return self.sdl_lambda * (1.0 - step / self.sdl_warmdown_steps)
+
+    def _compute_latent_flow_teacher_signals(self, batch: DataProto) -> dict[str, float]:
+        """Attach privileged teacher flow, successor inputs, and relevance gates."""
+        from verl.trainer.ppo.latent_flow_utils import (
+            build_next_step_indices,
+            compute_privilege_relevance_gate,
+        )
+
+        traj_uids = batch.non_tensor_batch.get("traj_uid")
+        turn_steps = batch.non_tensor_batch.get("turn_step")
+        if traj_uids is None or turn_steps is None:
+            raise KeyError("latent-flow SDAR requires traj_uid and turn_step in the rollout batch")
+
+        next_indices, flow_mask = build_next_step_indices(traj_uids, turn_steps)
+        for key in ("responses", "input_ids", "attention_mask", "position_ids"):
+            source = batch.batch[key]
+            batch.batch[f"next_{key}"] = source.index_select(0, next_indices.to(source.device))
+        batch.batch["flow_mask"] = flow_mask.to(batch.batch["input_ids"].device)
+
+        teacher_batch = build_teacher_batch(
+            batch=batch,
+            skill_provider=self.skill_provider,
+            tokenizer=self.tokenizer,
+            max_prompt_length=self.config.data.max_prompt_length,
+            truncation=self.config.data.get("truncation", "left"),
+        )
+        teacher_batch.meta_info["return_decision_repr"] = True
+        teacher_batch.meta_info["latent_flow_layers"] = self.config.actor_rollout_ref.actor.get(
+            "latent_flow_layers", "last"
+        )
+        teacher_output = self.actor_rollout_wg.compute_log_prob(teacher_batch)
+        teacher_log_probs = teacher_output.batch["old_log_probs"]
+        teacher_repr = teacher_output.batch["decision_repr"]
+
+        repr_next_indices = next_indices.to(teacher_repr.device)
+        teacher_flow = teacher_repr.index_select(0, repr_next_indices).float() - teacher_repr.float()
+        teacher_flow = teacher_flow * flow_mask.to(teacher_flow.device).view(
+            -1, *([1] * (teacher_flow.dim() - 1))
+        )
+        batch.batch["teacher_flow"] = teacher_flow.to(torch.bfloat16)
+
+        gate, mean_gap = compute_privilege_relevance_gate(
+            teacher_log_probs=teacher_log_probs,
+            student_log_probs=batch.batch["old_log_probs"],
+            response_mask=batch.batch["response_mask"],
+            beta=self.config.actor_rollout_ref.actor.get("sdar_gate_beta", 5.0),
+            mode=self.config.actor_rollout_ref.actor.get("latent_flow_gate_mode", "positive_tanh"),
+        )
+        batch.batch["privilege_gate"] = gate
+
+        valid_count = flow_mask.sum().clamp_min(1.0)
+        valid_gate = gate.float() * flow_mask.to(gate.device)
+        return {
+            "latent_flow/teacher_gap_mean": mean_gap.mean().item(),
+            "latent_flow/preupdate_gate_mean": (valid_gate.sum() / valid_count.to(gate.device)).item(),
+            "latent_flow/preupdate_gate_active_ratio": (
+                ((gate > 0).float() * flow_mask.to(gate.device)).sum() / valid_count.to(gate.device)
+            ).item(),
+            "latent_flow/pair_ratio": flow_mask.mean().item(),
+        }
 
     def fit(self):
         """
@@ -156,10 +217,13 @@ class SkillSDRayTrainer(RLSDRayTrainer):
                         old_log_prob.batch.pop("entropys")
                         batch = batch.union(old_log_prob)
 
-                    # ---- SkillSD: Teacher forward pass (same as RLSD) ----
+                    # ---- Privileged teacher forward pass ----
                     with _timer("teacher_forward", timing_raw):
-                        teacher_log_probs = self._compute_teacher_log_probs(batch)
-                        batch.batch["teacher_log_probs"] = teacher_log_probs
+                        if self.use_latent_flow:
+                            metrics.update(self._compute_latent_flow_teacher_signals(batch))
+                        else:
+                            teacher_log_probs = self._compute_teacher_log_probs(batch)
+                            batch.batch["teacher_log_probs"] = teacher_log_probs
 
                     if self.use_reference_policy:
                         with _timer("ref", timing_raw):
@@ -219,18 +283,19 @@ class SkillSDRayTrainer(RLSDRayTrainer):
                         # Advantages stay as standard GRPO sequence-level advantages.
                         # The SDL loss is computed inside dp_actor.update_policy().
 
-                        # Log teacher-student gap metrics
-                        response_mask = batch.batch["response_mask"]
-                        student_log_probs = batch.batch["old_log_probs"]
-                        teacher_lp = batch.batch["teacher_log_probs"]
-                        delta_t = (teacher_lp - student_log_probs) * response_mask
-                        current_sdl_lambda = self._get_sdl_lambda(self.global_steps)
-                        metrics["skillsd/teacher_student_gap_mean"] = masked_mean(delta_t, response_mask).item()
-                        metrics["skillsd/teacher_student_gap_std"] = masked_mean(delta_t ** 2, response_mask).sqrt().item()
-                        metrics["skillsd/sdl_lambda"] = current_sdl_lambda
+                        if not self.use_latent_flow:
+                            # Log teacher-student gap metrics for SDL / legacy SDAR.
+                            response_mask = batch.batch["response_mask"]
+                            student_log_probs = batch.batch["old_log_probs"]
+                            teacher_lp = batch.batch["teacher_log_probs"]
+                            delta_t = (teacher_lp - student_log_probs) * response_mask
+                            current_sdl_lambda = self._get_sdl_lambda(self.global_steps)
+                            metrics["skillsd/teacher_student_gap_mean"] = masked_mean(delta_t, response_mask).item()
+                            metrics["skillsd/teacher_student_gap_std"] = masked_mean(delta_t ** 2, response_mask).sqrt().item()
+                            metrics["skillsd/sdl_lambda"] = current_sdl_lambda
 
-                        # Save per-token gap data if SAVE_SDAR_DEBUG=1, at test_freq interval
-                        if os.environ.get("SAVE_SDAR_DEBUG", "0") == "1" and \
+                        # Save per-token gap data only for output-space distillation.
+                        if not self.use_latent_flow and os.environ.get("SAVE_SDAR_DEBUG", "0") == "1" and \
                                 self.config.trainer.test_freq > 0 and \
                                 self.global_steps % self.config.trainer.test_freq == 0:
                             save_dir = os.environ.get(

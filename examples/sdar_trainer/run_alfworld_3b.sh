@@ -9,18 +9,20 @@ ENGINE=${1:-vllm}
 
 num_cpus_per_env_worker=0.1
 
-# SDAR hyperparameters
-sdar_coef=0.01
+# Environment-step latent-flow SDAR hyperparameters
+flow_coef=0.01
 gate_beta=5.0
+flow_layers=last4
+gate_mode=positive_tanh
 skill_all=false
 
 train_data_size=16
 val_data_size=128
 group_size=8
-experiment_name="sdar_qwen2.5_3b_coef${sdar_coef}_beta${gate_beta}_skillall${skill_all}"
+experiment_name="latent_flow_qwen2.5_3b_coef${flow_coef}_beta${gate_beta}_${flow_layers}_skillall${skill_all}"
 export ALFWORLD_DATA=/personal/datasets/alfworld
 
-export WANDB_API_KEY=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
+export WANDB_API_KEY=${WANDB_API_KEY:?Please set WANDB_API_KEY}
 
 # python3 examples/data_preprocess/prepare.py \
 #     --mode 'text' \
@@ -65,8 +67,11 @@ python3 -m verl.trainer.main_sdar \
     actor_rollout_ref.actor.use_invalid_action_penalty=True \
     actor_rollout_ref.actor.invalid_action_penalty_coef=0.1 \
     algorithm.use_kl_in_reward=False \
-    +algorithm.sdar.sdar_coef=$sdar_coef \
+    +algorithm.sdar.mode=latent_flow \
+    +algorithm.sdar.flow_coef=$flow_coef \
     +algorithm.sdar.gate_beta=$gate_beta \
+    +algorithm.sdar.flow_layers=$flow_layers \
+    +algorithm.sdar.gate_mode=$gate_mode \
     +algorithm.sdar.skills_dir=skills/alfworld \
     +algorithm.sdar.skill_all=$skill_all \
     env.env_name=alfworld/AlfredTWEnv \
