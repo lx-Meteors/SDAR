@@ -22,7 +22,7 @@ group_size=8
 experiment_name="latent_flow_qwen2.5_3b_coef${flow_coef}_beta${gate_beta}_${flow_layers}_skillall${skill_all}"
 export ALFWORLD_DATA=/personal/datasets/alfworld
 
-export WANDB_API_KEY=${WANDB_API_KEY:?Please set WANDB_API_KEY}
+export WANDB_API_KEY=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
 
 # python3 examples/data_preprocess/prepare.py \
 #     --mode 'text' \
@@ -42,7 +42,7 @@ python3 -m verl.trainer.main_sdar \
     data.filter_overlong_prompts=True \
     data.truncation='error' \
     data.return_raw_chat=True \
-    actor_rollout_ref.model.path=Qwen/Qwen2.5-3B-Instruct \
+    actor_rollout_ref.model.path=/personal/models/Qwen/Qwen2.5-3B-Instruct \
     actor_rollout_ref.actor.optim.lr=1e-6 \
     actor_rollout_ref.model.use_remove_padding=True \
     actor_rollout_ref.actor.ppo_mini_batch_size=256 \
