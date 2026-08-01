@@ -1,0 +1,725 @@
+{
+  "summary": {
+    "n_responses": 16,
+    "total_tokens": 3136,
+    "teacher_top1_rate": 0.6696384772658348,
+    "student_top1_rate": 0.6965461261570454,
+    "both_top1_rate": 0.6462929360568523,
+    "delta_h_all_mean": 0.029617256666824687,
+    "delta_h_eligible_mean": 0.024932907021138817,
+    "frac_eligible_pos_dh": 0.6066506952047348,
+    "boost_frac_of_all_tokens": 0.3919366616755724
+  },
+  "records": [
+    {
+      "prompt_idx": 0,
+      "n_tokens": 318,
+      "t_top1_rate": 0.7861635088920593,
+      "s_top1_rate": 0.7798742055892944,
+      "both_top1_rate": 0.7547169327735901,
+      "delta_h_all_mean": 0.02198409102857113,
+      "delta_h_eligible_mean": 0.02501848340034485,
+      "delta_h_eligible_std": 0.1463771015405655,
+      "frac_eligible_pos_dh": 0.5791667103767395,
+      "boost_frac_of_all": 0.4371069073677063,
+      "delta_h_eligible_q": [
+        -0.08112736791372299,
+        4.785124474437907e-06,
+        0.14041094481945038,
+        0.4186233878135681
+      ]
+    },
+    {
+      "prompt_idx": 0,
+      "n_tokens": 263,
+      "t_top1_rate": 0.6463878154754639,
+      "s_top1_rate": 0.6730037927627563,
+      "both_top1_rate": 0.6197718381881714,
+      "delta_h_all_mean": 0.043301887810230255,
+      "delta_h_eligible_mean": 0.036897044628858566,
+      "delta_h_eligible_std": 0.1633366346359253,
+      "frac_eligible_pos_dh": 0.6625766754150391,
+      "boost_frac_of_all": 0.41064637899398804,
+      "delta_h_eligible_q": [
+        -0.06460494548082352,
+        5.450565367937088e-05,
+        0.24690254032611847,
+        0.6253799200057983
+      ]
+    },
+    {
+      "prompt_idx": 0,
+      "n_tokens": 191,
+      "t_top1_rate": 0.6701570749282837,
+      "s_top1_rate": 0.6596858501434326,
+      "both_top1_rate": 0.6387434601783752,
+      "delta_h_all_mean": 0.0439533106982708,
+      "delta_h_eligible_mean": 0.05716346576809883,
+      "delta_h_eligible_std": 0.21521276235580444,
+      "frac_eligible_pos_dh": 0.7049179673194885,
+      "boost_frac_of_all": 0.45026177167892456,
+      "delta_h_eligible_q": [
+        -0.07933178544044495,
+        0.002774217166006565,
+        0.1851755976676941,
+        0.9404540657997131
+      ]
+    },
+    {
+      "prompt_idx": 0,
+      "n_tokens": 187,
+      "t_top1_rate": 0.7272727489471436,
+      "s_top1_rate": 0.7379679083824158,
+      "both_top1_rate": 0.7058823704719543,
+      "delta_h_all_mean": 0.014918919652700424,
+      "delta_h_eligible_mean": 0.0046424404717981815,
+      "delta_h_eligible_std": 0.10460074990987778,
+      "frac_eligible_pos_dh": 0.5833333730697632,
+      "boost_frac_of_all": 0.4117647111415863,
+      "delta_h_eligible_q": [
+        -0.07832256704568863,
+        1.6853776969583123e-06,
+        0.08487481623888016,
+        0.4441954791545868
+      ]
+    },
+    {
+      "prompt_idx": 1,
+      "n_tokens": 166,
+      "t_top1_rate": 0.6746987700462341,
+      "s_top1_rate": 0.6987951397895813,
+      "both_top1_rate": 0.6445782780647278,
+      "delta_h_all_mean": 0.05633919686079025,
+      "delta_h_eligible_mean": 0.038508180528879166,
+      "delta_h_eligible_std": 0.13374894857406616,
+      "frac_eligible_pos_dh": 0.6728971600532532,
+      "boost_frac_of_all": 0.4337349236011505,
+      "delta_h_eligible_q": [
+        -0.06607647240161896,
+        0.00013565902190748602,
+        0.2274090200662613,
+        0.4405165910720825
+      ]
+    },
+    {
+      "prompt_idx": 1,
+      "n_tokens": 144,
+      "t_top1_rate": 0.6388888955116272,
+      "s_top1_rate": 0.6875,
+      "both_top1_rate": 0.631944477558136,
+      "delta_h_all_mean": 0.042074140161275864,
+      "delta_h_eligible_mean": 0.008264826610684395,
+      "delta_h_eligible_std": 0.13494063913822174,
+      "frac_eligible_pos_dh": 0.6153846383094788,
+      "boost_frac_of_all": 0.3888888955116272,
+      "delta_h_eligible_q": [
+        -0.12106871604919434,
+        8.294854524137918e-06,
+        0.12496018409729004,
+        0.463919460773468
+      ]
+    },
+    {
+      "prompt_idx": 1,
+      "n_tokens": 158,
+      "t_top1_rate": 0.594936728477478,
+      "s_top1_rate": 0.6329113841056824,
+      "both_top1_rate": 0.5822784900665283,
+      "delta_h_all_mean": 0.02892293967306614,
+      "delta_h_eligible_mean": 0.03332110866904259,
+      "delta_h_eligible_std": 0.24504517018795013,
+      "frac_eligible_pos_dh": 0.6086956858634949,
+      "boost_frac_of_all": 0.3544303774833679,
+      "delta_h_eligible_q": [
+        -0.127553328871727,
+        3.7396588595584035e-05,
+        0.2038048654794693,
+        0.8693385124206543
+      ]
+    },
+    {
+      "prompt_idx": 1,
+      "n_tokens": 174,
+      "t_top1_rate": 0.6264367699623108,
+      "s_top1_rate": 0.6781609058380127,
+      "both_top1_rate": 0.5919539928436279,
+      "delta_h_all_mean": 0.0613563135266304,
+      "delta_h_eligible_mean": 0.04683902859687805,
+      "delta_h_eligible_std": 0.19925612211227417,
+      "frac_eligible_pos_dh": 0.6699029207229614,
+      "boost_frac_of_all": 0.3965517282485962,
+      "delta_h_eligible_q": [
+        -0.1011698991060257,
+        0.0001391264668200165,
+        0.28921064734458923,
+        0.7158827185630798
+      ]
+    },
+    {
+      "prompt_idx": 2,
+      "n_tokens": 267,
+      "t_top1_rate": 0.5805243253707886,
+      "s_top1_rate": 0.6142322421073914,
+      "both_top1_rate": 0.5580524206161499,
+      "delta_h_all_mean": -0.009869853965938091,
+      "delta_h_eligible_mean": -0.01299276202917099,
+      "delta_h_eligible_std": 0.14375440776348114,
+      "frac_eligible_pos_dh": 0.4026845693588257,
+      "boost_frac_of_all": 0.2247191071510315,
+      "delta_h_eligible_q": [
+        -0.10957171767950058,
+        -4.9507361836731434e-05,
+        0.05068529024720192,
+        0.4538973867893219
+      ]
+    },
+    {
+      "prompt_idx": 2,
+      "n_tokens": 136,
+      "t_top1_rate": 0.5955882668495178,
+      "s_top1_rate": 0.6470588445663452,
+      "both_top1_rate": 0.5735294222831726,
+      "delta_h_all_mean": 0.042381636798381805,
+      "delta_h_eligible_mean": 0.0421307310461998,
+      "delta_h_eligible_std": 0.2100546658039093,
+      "frac_eligible_pos_dh": 0.6410256624221802,
+      "boost_frac_of_all": 0.36764705181121826,
+      "delta_h_eligible_q": [
+        -0.12689277529716492,
+        0.00014656464918516576,
+        0.23571771383285522,
+        0.7885584235191345
+      ]
+    },
+    {
+      "prompt_idx": 2,
+      "n_tokens": 221,
+      "t_top1_rate": 0.7149321436882019,
+      "s_top1_rate": 0.733031690120697,
+      "both_top1_rate": 0.6877828240394592,
+      "delta_h_all_mean": 0.021603403612971306,
+      "delta_h_eligible_mean": 0.012315229512751102,
+      "delta_h_eligible_std": 0.10651439428329468,
+      "frac_eligible_pos_dh": 0.5460526347160339,
+      "boost_frac_of_all": 0.37556561827659607,
+      "delta_h_eligible_q": [
+        -0.08696125447750092,
+        1.611200968909543e-05,
+        0.12687404453754425,
+        0.3442622721195221
+      ]
+    },
+    {
+      "prompt_idx": 2,
+      "n_tokens": 220,
+      "t_top1_rate": 0.7136363387107849,
+      "s_top1_rate": 0.7727272510528564,
+      "both_top1_rate": 0.7136363387107849,
+      "delta_h_all_mean": 0.02989358641207218,
+      "delta_h_eligible_mean": 0.026359861716628075,
+      "delta_h_eligible_std": 0.1551477015018463,
+      "frac_eligible_pos_dh": 0.6050955653190613,
+      "boost_frac_of_all": 0.4318181574344635,
+      "delta_h_eligible_q": [
+        -0.08712201565504074,
+        1.687114854576066e-05,
+        0.18390025198459625,
+        0.6613160371780396
+      ]
+    },
+    {
+      "prompt_idx": 3,
+      "n_tokens": 208,
+      "t_top1_rate": 0.629807710647583,
+      "s_top1_rate": 0.6490384936332703,
+      "both_top1_rate": 0.6057692766189575,
+      "delta_h_all_mean": 0.01870368979871273,
+      "delta_h_eligible_mean": 0.02809123881161213,
+      "delta_h_eligible_std": 0.18866580724716187,
+      "frac_eligible_pos_dh": 0.5873016119003296,
+      "boost_frac_of_all": 0.35576924681663513,
+      "delta_h_eligible_q": [
+        -0.11320719122886658,
+        0.0002121435827575624,
+        0.21609948575496674,
+        0.5455226898193359
+      ]
+    },
+    {
+      "prompt_idx": 3,
+      "n_tokens": 183,
+      "t_top1_rate": 0.7650272846221924,
+      "s_top1_rate": 0.748633861541748,
+      "both_top1_rate": 0.7213114500045776,
+      "delta_h_all_mean": 0.0015234240563586354,
+      "delta_h_eligible_mean": -0.007610964123159647,
+      "delta_h_eligible_std": 0.16960015892982483,
+      "frac_eligible_pos_dh": 0.5,
+      "boost_frac_of_all": 0.3606557250022888,
+      "delta_h_eligible_q": [
+        -0.13638505339622498,
+        1.5469295533421246e-07,
+        0.07275830954313278,
+        0.5889244675636292
+      ]
+    },
+    {
+      "prompt_idx": 3,
+      "n_tokens": 166,
+      "t_top1_rate": 0.7228915691375732,
+      "s_top1_rate": 0.7530120015144348,
+      "both_top1_rate": 0.6987951397895813,
+      "delta_h_all_mean": 0.030492037534713745,
+      "delta_h_eligible_mean": 0.02271813340485096,
+      "delta_h_eligible_std": 0.15164165198802948,
+      "frac_eligible_pos_dh": 0.681034505367279,
+      "boost_frac_of_all": 0.47590360045433044,
+      "delta_h_eligible_q": [
+        -0.1065523624420166,
+        7.975101470947266e-05,
+        0.14758771657943726,
+        0.5503169298171997
+      ]
+    },
+    {
+      "prompt_idx": 3,
+      "n_tokens": 134,
+      "t_top1_rate": 0.6268656849861145,
+      "s_top1_rate": 0.6791044473648071,
+      "both_top1_rate": 0.6119402647018433,
+      "delta_h_all_mean": 0.02629738301038742,
+      "delta_h_eligible_mean": 0.03726046532392502,
+      "delta_h_eligible_std": 0.18604180216789246,
+      "frac_eligible_pos_dh": 0.6463414430618286,
+      "boost_frac_of_all": 0.3955223858356476,
+      "delta_h_eligible_q": [
+        -0.09686364978551865,
+        3.3908865589182824e-05,
+        0.22156521677970886,
+        0.6367756724357605
+      ]
+    }
+  ],
+  "boosted_examples": [
+    {
+      "context": "<think>\nGiven the instruction",
+      "token": " to",
+      "delta_h": 0.375,
+      "h_teacher": 0.966,
+      "h_student": 0.591
+    },
+    {
+      "context": " lower than $60,",
+      "token": " I",
+      "delta_h": 0.357,
+      "h_teacher": 1.367,
+      "h_student": 1.011
+    },
+    {
+      "context": " page 1.\n\n1.",
+      "token": " The",
+      "delta_h": 0.305,
+      "h_teacher": 0.736,
+      "h_student": 0.431
+    },
+    {
+      "context": " 1.\n\n1. The",
+      "token": " first",
+      "delta_h": 1.393,
+      "h_teacher": 1.483,
+      "h_student": 0.09
+    },
+    {
+      "context": ". However, it might not",
+      "token": " be",
+      "delta_h": 0.446,
+      "h_teacher": 0.679,
+      "h_student": 0.233
+    },
+    {
+      "context": " running shoes available that fits the",
+      "token": " criteria",
+      "delta_h": 0.392,
+      "h_teacher": 1.014,
+      "h_student": 0.622
+    },
+    {
+      "context": " available that fits the criteria (",
+      "token": "size",
+      "delta_h": 0.412,
+      "h_teacher": 0.77,
+      "h_student": 0.358
+    },
+    {
+      "context": "size 10 and price",
+      "token": " lower",
+      "delta_h": 0.468,
+      "h_teacher": 1.349,
+      "h_student": 0.881
+    },
+    {
+      "context": " $45.99",
+      "token": ".",
+      "delta_h": 0.358,
+      "h_teacher": 0.48,
+      "h_student": 0.122
+    },
+    {
+      "context": ". However, the \"click",
+      "token": "\"",
+      "delta_h": 0.719,
+      "h_teacher": 0.945,
+      "h_student": 0.226
+    },
+    {
+      "context": "think>\nGiven my current search",
+      "token": " results",
+      "delta_h": 1.397,
+      "h_teacher": 1.506,
+      "h_student": 0.109
+    },
+    {
+      "context": ">\nGiven my current search results",
+      "token": ",",
+      "delta_h": 0.5,
+      "h_teacher": 0.78,
+      "h_student": 0.28
+    },
+    {
+      "context": " results, none of the pairs",
+      "token": " of",
+      "delta_h": 0.838,
+      "h_teacher": 1.162,
+      "h_student": 0.324
+    },
+    {
+      "context": " below $60. The",
+      "token": " first",
+      "delta_h": 0.388,
+      "h_teacher": 1.587,
+      "h_student": 1.199
+    },
+    {
+      "context": " ($45.99",
+      "token": ")",
+      "delta_h": 0.487,
+      "h_teacher": 0.967,
+      "h_student": 0.48
+    },
+    {
+      "context": " for men, and a price",
+      "token": " lower",
+      "delta_h": 0.501,
+      "h_teacher": 0.898,
+      "h_student": 0.397
+    },
+    {
+      "context": " page shows 5 results,",
+      "token": " and",
+      "delta_h": 0.46,
+      "h_teacher": 1.4,
+      "h_student": 0.94
+    },
+    {
+      "context": "5.99 - It",
+      "token": " fits",
+      "delta_h": 0.409,
+      "h_teacher": 1.365,
+      "h_student": 0.956
+    },
+    {
+      "context": " the available option that matches all",
+      "token": " the",
+      "delta_h": 0.319,
+      "h_teacher": 0.618,
+      "h_student": 0.299
+    },
+    {
+      "context": " so I will proceed to click",
+      "token": " on",
+      "delta_h": 0.308,
+      "h_teacher": 1.02,
+      "h_student": 0.713
+    },
+    {
+      "context": " click on the buy now option",
+      "token": " to",
+      "delta_h": 0.327,
+      "h_teacher": 0.689,
+      "h_student": 0.363
+    },
+    {
+      "context": " on the buy now option to",
+      "token": " purchase",
+      "delta_h": 0.303,
+      "h_teacher": 1.714,
+      "h_student": 1.411
+    },
+    {
+      "context": " option to purchase the product.\n\n",
+      "token": "Additionally",
+      "delta_h": 0.493,
+      "h_teacher": 1.658,
+      "h_student": 1.165
+    },
+    {
+      "context": " current observation, there is a",
+      "token": " machine",
+      "delta_h": 0.442,
+      "h_teacher": 1.255,
+      "h_student": 0.813
+    },
+    {
+      "context": " to re-evaluate and potentially",
+      "token": " find",
+      "delta_h": 0.663,
+      "h_teacher": 0.816,
+      "h_student": 0.153
+    },
+    {
+      "context": " available. After checking the grey",
+      "token": " option",
+      "delta_h": 0.47,
+      "h_teacher": 0.745,
+      "h_student": 0.275
+    },
+    {
+      "context": " than $25). Since",
+      "token": " the",
+      "delta_h": 0.328,
+      "h_teacher": 0.933,
+      "h_student": 0.605
+    },
+    {
+      "context": " to see the detailed product page",
+      "token": ",",
+      "delta_h": 0.401,
+      "h_teacher": 1.955,
+      "h_student": 1.554
+    },
+    {
+      "context": "Description' next and look for",
+      "token": " the",
+      "delta_h": 0.776,
+      "h_teacher": 1.106,
+      "h_student": 0.33
+    },
+    {
+      "context": "' next and look for the",
+      "token": " price",
+      "delta_h": 1.814,
+      "h_teacher": 1.866,
+      "h_student": 0.052
+    },
+    {
+      "context": "18 inches. The price",
+      "token": " is",
+      "delta_h": 0.424,
+      "h_teacher": 1.142,
+      "h_student": 0.717
+    },
+    {
+      "context": " price is well under the budget",
+      "token": " of",
+      "delta_h": 0.416,
+      "h_teacher": 0.666,
+      "h_student": 0.249
+    },
+    {
+      "context": " first purchase. However, to",
+      "token": " ensure",
+      "delta_h": 0.429,
+      "h_teacher": 1.279,
+      "h_student": 0.849
+    },
+    {
+      "context": ". However, to ensure I",
+      "token": " have",
+      "delta_h": 0.716,
+      "h_teacher": 1.794,
+      "h_student": 1.078
+    },
+    {
+      "context": ", to ensure I have no",
+      "token": " other",
+      "delta_h": 0.533,
+      "h_teacher": 1.542,
+      "h_student": 1.009
+    },
+    {
+      "context": " Cable B0912",
+      "token": "ABCDE",
+      "delta_h": 0.915,
+      "h_teacher": 1.06,
+      "h_student": 0.145
+    },
+    {
+      "context": " specific item to finalize the purchase",
+      "token": ".\n",
+      "delta_h": 0.604,
+      "h_teacher": 1.451,
+      "h_student": 0.847
+    },
+    {
+      "context": " of the search to see if",
+      "token": " any",
+      "delta_h": 0.365,
+      "h_teacher": 1.455,
+      "h_student": 1.091
+    },
+    {
+      "context": " the search to see if any",
+      "token": " of",
+      "delta_h": 0.643,
+      "h_teacher": 0.822,
+      "h_student": 0.179
+    },
+    {
+      "context": " returned five different products and their",
+      "token": " prices",
+      "delta_h": 0.87,
+      "h_teacher": 1.494,
+      "h_student": 0.624
+    },
+    {
+      "context": " five different products and their prices",
+      "token": ".",
+      "delta_h": 0.395,
+      "h_teacher": 1.475,
+      "h_student": 1.08
+    },
+    {
+      "context": " would be prudent to verify if",
+      "token": " there",
+      "delta_h": 0.764,
+      "h_teacher": 1.713,
+      "h_student": 0.949
+    },
+    {
+      "context": ">\nBased on the search results",
+      "token": " provided",
+      "delta_h": 0.311,
+      "h_teacher": 0.674,
+      "h_student": 0.363
+    },
+    {
+      "context": " braided USB-C charging cables",
+      "token": " available",
+      "delta_h": 0.329,
+      "h_teacher": 1.562,
+      "h_student": 1.233
+    },
+    {
+      "context": " charging cables available at the moment",
+      "token": ".",
+      "delta_h": 0.325,
+      "h_teacher": 0.741,
+      "h_student": 0.417
+    },
+    {
+      "context": "4F). The most suitable",
+      "token": " option",
+      "delta_h": 0.391,
+      "h_teacher": 1.46,
+      "h_student": 1.069
+    },
+    {
+      "context": " and shorter than $15",
+      "token": ").\n",
+      "delta_h": 0.36,
+      "h_teacher": 0.729,
+      "h_student": 0.369
+    },
+    {
+      "context": ">\nBased on the provided options",
+      "token": ",",
+      "delta_h": 0.651,
+      "h_teacher": 0.965,
+      "h_student": 0.314
+    },
+    {
+      "context": " only one product matches the description",
+      "token": " of",
+      "delta_h": 0.675,
+      "h_teacher": 1.407,
+      "h_student": 0.733
+    },
+    {
+      "context": " a nylon braided version,",
+      "token": " and",
+      "delta_h": 0.519,
+      "h_teacher": 1.035,
+      "h_student": 0.517
+    },
+    {
+      "context": " are as follows:\n\n- Product",
+      "token": " B",
+      "delta_h": 0.315,
+      "h_teacher": 0.945,
+      "h_student": 0.63
+    },
+    {
+      "context": " Product B0912",
+      "token": "ABCDE",
+      "delta_h": 0.638,
+      "h_teacher": 0.695,
+      "h_student": 0.056
+    },
+    {
+      "context": " which is met with the ",
+      "token": "1",
+      "delta_h": 0.309,
+      "h_teacher": 0.649,
+      "h_student": 0.34
+    },
+    {
+      "context": " is met with the 1",
+      "token": "2",
+      "delta_h": 0.477,
+      "h_teacher": 0.479,
+      "h_student": 0.001
+    },
+    {
+      "context": ".\n\nSo, there are no",
+      "token": " further",
+      "delta_h": 0.377,
+      "h_teacher": 1.982,
+      "h_student": 1.605
+    },
+    {
+      "context": " needed for the product type and",
+      "token": " size",
+      "delta_h": 1.041,
+      "h_teacher": 1.836,
+      "h_student": 0.795
+    },
+    {
+      "context": "'s needs as per their search",
+      "token": " criteria",
+      "delta_h": 0.347,
+      "h_teacher": 1.24,
+      "h_student": 0.892
+    },
+    {
+      "context": "think>\nGiven the instruction to",
+      "token": " find",
+      "delta_h": 0.456,
+      "h_teacher": 0.981,
+      "h_student": 0.525
+    },
+    {
+      "context": "Next, we need to verify",
+      "token": " if",
+      "delta_h": 0.589,
+      "h_teacher": 1.083,
+      "h_student": 0.494
+    },
+    {
+      "context": " to verify if this body lotion",
+      "token": " is",
+      "delta_h": 0.328,
+      "h_teacher": 0.41,
+      "h_student": 0.083
+    }
+  ]
+}
