@@ -8,7 +8,7 @@ num_cpus_per_env_worker=0.1
 # Environment-step latent-flow SDAR hyperparameters
 flow_coef=0.1
 gate_beta=5.0
-flow_layers=last
+flow_layers=all
 gate_mode=positive_tanh
 skill_all=false
 

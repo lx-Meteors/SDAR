@@ -6,6 +6,9 @@ from verl.trainer.ppo.latent_flow_utils import (
     compute_latent_flow_loss,
     compute_privilege_relevance_gate,
     get_hidden_state_indices,
+    left_pad_student_inputs,
+    shift_valid_position_ids,
+    validate_decision_slot_alignment,
 )
 
 
@@ -96,3 +99,88 @@ def test_get_hidden_state_indices(mode, expected):
 
 def test_last4_uses_every_layer_when_model_has_fewer_than_four_layers():
     assert get_hidden_state_indices(3, "last4") == [1, 2]
+
+
+def test_left_pad_student_inputs_preserves_every_original_slot_value():
+    input_ids = torch.tensor([[7, 8, 9, 10]])
+    attention_mask = torch.tensor([[1, 1, 1, 0]])
+    position_ids = torch.tensor([[0, 1, 2, 3]])
+
+    padded_ids, padded_mask, padded_positions = left_pad_student_inputs(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        position_ids=position_ids,
+        target_sequence_length=7,
+        pad_token_id=0,
+    )
+
+    assert padded_ids.tolist() == [[0, 0, 0, 7, 8, 9, 10]]
+    assert padded_mask.tolist() == [[0, 0, 0, 1, 1, 1, 0]]
+    assert padded_positions.tolist() == [[0, 0, 0, 0, 1, 2, 3]]
+
+
+def test_position_shift_changes_only_valid_student_tokens():
+    shifted = shift_valid_position_ids(
+        position_ids=torch.tensor([[0, 0, 0, 1, 2, 3]]),
+        attention_mask=torch.tensor([[0, 0, 1, 1, 1, 0]]),
+        offsets=torch.tensor([2]),
+    )
+
+    assert shifted.tolist() == [[0, 0, 2, 3, 4, 3]]
+
+
+def test_decision_alignment_accepts_teacher_skill_in_student_padding_slots():
+    student_mask = torch.tensor([[0, 0, 1, 1, 1, 1, 0]])
+    teacher_mask = torch.tensor([[1, 1, 1, 1, 1, 1, 0]])
+    student_ids = torch.tensor([[0, 0, 7, 8, 9, 10, 0]])
+    teacher_ids = torch.tensor([[5, 6, 7, 8, 9, 10, 0]])
+    student_positions = torch.tensor([[0, 0, 2, 3, 4, 5, 4]])
+    teacher_positions = torch.tensor([[0, 1, 2, 3, 4, 5, 5]])
+
+    decision_index = validate_decision_slot_alignment(
+        student_input_ids=student_ids,
+        student_attention_mask=student_mask,
+        student_position_ids=student_positions,
+        teacher_input_ids=teacher_ids,
+        teacher_attention_mask=teacher_mask,
+        teacher_position_ids=teacher_positions,
+        response_length=2,
+    )
+    assert decision_index == 4
+
+
+def test_decision_alignment_rejects_changed_student_prompt():
+    mask = torch.ones(1, 5)
+    student_ids = torch.tensor([[1, 2, 3, 4, 5]])
+    teacher_ids = torch.tensor([[1, 9, 3, 4, 5]])
+    student_positions = torch.tensor([[0, 1, 2, 3, 4]])
+    teacher_positions = student_positions.clone()
+
+    with pytest.raises(ValueError, match="changed student prompt"):
+        validate_decision_slot_alignment(
+            student_input_ids=student_ids,
+            student_attention_mask=mask,
+            student_position_ids=student_positions,
+            teacher_input_ids=teacher_ids,
+            teacher_attention_mask=mask,
+            teacher_position_ids=teacher_positions,
+            response_length=2,
+        )
+
+
+def test_decision_alignment_rejects_unshifted_student_positions():
+    student_mask = torch.tensor([[0, 0, 1, 1, 1]])
+    teacher_mask = torch.ones(1, 5)
+    student_ids = torch.tensor([[0, 0, 7, 8, 9]])
+    teacher_ids = torch.tensor([[5, 6, 7, 8, 9]])
+
+    with pytest.raises(ValueError, match="position IDs differ"):
+        validate_decision_slot_alignment(
+            student_input_ids=student_ids,
+            student_attention_mask=student_mask,
+            student_position_ids=torch.tensor([[0, 0, 0, 1, 2]]),
+            teacher_input_ids=teacher_ids,
+            teacher_attention_mask=teacher_mask,
+            teacher_position_ids=torch.tensor([[0, 1, 2, 3, 4]]),
+            response_length=1,
+        )

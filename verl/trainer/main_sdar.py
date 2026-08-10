@@ -57,7 +57,7 @@ class SDARTaskRunner:
             config.actor_rollout_ref.actor.latent_flow_loss_coef = sdar_cfg.get(
                 "flow_coef", sdar_cfg.get("sdar_coef", 0.1)
             )
-            config.actor_rollout_ref.actor.latent_flow_layers = sdar_cfg.get("flow_layers", "last")
+            config.actor_rollout_ref.actor.latent_flow_layers = sdar_cfg.get("flow_layers", "all")
             config.actor_rollout_ref.actor.latent_flow_gate_mode = sdar_cfg.get(
                 "gate_mode", "positive_tanh"
             )

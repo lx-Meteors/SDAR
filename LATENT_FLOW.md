@@ -33,13 +33,25 @@ weight of one.  Terminal steps and missing successors are always masked.
 +algorithm.sdar.flow_coef=0.1 \
 +algorithm.sdar.gate_beta=5.0 \
 +algorithm.sdar.gate_mode=positive_tanh \
-+algorithm.sdar.flow_layers=last4
++algorithm.sdar.flow_layers=all
 ```
 
-`flow_layers` accepts `last`, `last4`, `all`, `even`, or `odd`.  `last4`
-selects the final four transformer-layer outputs (or every transformer layer
-for models with fewer than four).  Multi-layer targets scale CPU/Ray transfer
-approximately linearly with the number of selected layers.
+`flow_layers` accepts `last`, `last4`, `all`, `even`, or `odd`.  The experiment
+default is `all`, matching OPRD's released representation-distillation setup.
+Multi-layer targets scale CPU/Ray transfer approximately linearly with the
+number of selected layers.
+
+For latent-flow forwards, the student receives extra left-padding equal to the
+longest privileged prefix in the rollout batch. The teacher uses those slots
+for the complete privileged prefix. Neither the skill nor the student prompt is
+truncated, and the original prompt, decision anchor, and response occupy
+identical teacher/student tensor slots. Every valid student position ID is then
+shifted by that row's privileged-prefix length, giving corresponding prompt,
+decision, and response tokens identical teacher/student RoPE IDs. These aligned
+student representation forwards keep padding masked and bypass the packed
+remove-padding path; rollout generation is unchanged. The applied shift and
+post-alignment offset are logged as `latent_flow/student_position_shift` and
+`latent_flow/decision_rope_offset` (the latter must be zero).
 
 For the old output-space SDAR ablation, use:
 

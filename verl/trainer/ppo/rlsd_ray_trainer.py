@@ -42,6 +42,7 @@ def build_teacher_batch(
     tokenizer,
     max_prompt_length: int,
     truncation: str = "error",
+    align_decision_slots: bool = False,
 ):
     """
     Build a teacher batch by prepending privileged skill info to each sample's prompt.
@@ -57,6 +58,9 @@ def build_teacher_batch(
         tokenizer: The tokenizer.
         max_prompt_length: Maximum prompt length.
         truncation: Truncation mode.
+        align_decision_slots: Extend the prompt width by the longest skill in
+            the batch. This preserves every skill and the complete student
+            prompt; the caller left-pads the student to the returned width.
 
     Returns:
         teacher_batch: A DataProto with modified input_ids/attention_mask/position_ids
@@ -65,9 +69,8 @@ def build_teacher_batch(
     bs = batch.batch["input_ids"].size(0)
     response_length = batch.batch["responses"].size(1)
 
-    teacher_input_ids_list = []
-    teacher_attention_mask_list = []
-    teacher_position_ids_list = []
+    prompt_width = batch.batch["input_ids"].size(1) - response_length
+    sample_parts = []
 
     for i in range(bs):
         # Decode the original prompt (student input minus response)
@@ -107,32 +110,60 @@ def build_teacher_batch(
         else:
             skill_text = skill_provider.get_privileged_info_from_prompt(prompt_text)
 
-        # Construct teacher prompt while preserving privileged information under
-        # the fixed prompt budget.  Blind left truncation would remove the
-        # prepended skill whenever the student prompt is already near the limit.
+        # Construct teacher prompt while preserving privileged information.
         skill_prefix = f"[Privileged Skill Information]\n{skill_text}\n\n"
         skill_prefix_ids = tokenizer.encode(skill_prefix, add_special_tokens=False)
         original_prompt_token_ids = valid_prompt_ids.tolist()
 
-        # Reserve up to half the budget for the prompt tail (which contains the
-        # latest environment observation), then use every remaining token for
-        # privileged skill context.  Short skills naturally leave more room for
-        # the original prompt.
-        reserved_prompt_tokens = min(len(original_prompt_token_ids), max_prompt_length // 2)
-        skill_budget = max_prompt_length - reserved_prompt_tokens
-        skill_prefix_ids = skill_prefix_ids[:skill_budget]
-        prompt_budget = max_prompt_length - len(skill_prefix_ids)
-        if prompt_budget > 0:
-            original_prompt_token_ids = original_prompt_token_ids[-prompt_budget:]
+        sample_parts.append(
+            (
+                skill_prefix_ids,
+                original_prompt_token_ids,
+                batch.batch["responses"][i],
+                original_attention_mask[-response_length:],
+            )
+        )
+
+    if align_decision_slots:
+        # Add enough new sequence width for the longest privileged prefix. For
+        # every row, left padding absorbs differences in prompt/skill lengths,
+        # so the untouched student prompt and response end at the same slots.
+        max_skill_length = max((len(parts[0]) for parts in sample_parts), default=0)
+        teacher_prompt_width = prompt_width + max_skill_length
+    else:
+        teacher_prompt_width = max_prompt_length
+
+    teacher_input_ids_list = []
+    teacher_attention_mask_list = []
+    teacher_position_ids_list = []
+    for skill_prefix_ids, original_prompt_token_ids, response_ids, response_mask in sample_parts:
+        if align_decision_slots:
+            teacher_prompt_ids = skill_prefix_ids + original_prompt_token_ids
         else:
-            original_prompt_token_ids = []
-        teacher_prompt_ids = skill_prefix_ids + original_prompt_token_ids
+            teacher_prompt_budget = max_prompt_length
+            reserved_prompt_tokens = min(
+                len(original_prompt_token_ids), max(1, teacher_prompt_budget // 2)
+            )
+            skill_budget = teacher_prompt_budget - reserved_prompt_tokens
+            skill_prefix_ids = skill_prefix_ids[:skill_budget]
+            prompt_budget = teacher_prompt_budget - len(skill_prefix_ids)
+            if prompt_budget > 0:
+                original_prompt_token_ids = original_prompt_token_ids[-prompt_budget:]
+            else:
+                original_prompt_token_ids = []
+            teacher_prompt_ids = skill_prefix_ids + original_prompt_token_ids
 
         teacher_prompt_ids = torch.tensor(teacher_prompt_ids, dtype=torch.long)
         actual_prompt_len = len(teacher_prompt_ids)
 
-        # Pad to max_prompt_length (left padding)
-        pad_length = max_prompt_length - actual_prompt_len
+        # Left padding makes all prompts share one width. In aligned mode this
+        # also places the original prompt/response at the student's padded slots.
+        pad_length = teacher_prompt_width - actual_prompt_len
+        if pad_length < 0:
+            raise ValueError(
+                f"teacher prompt length {actual_prompt_len} exceeds target width "
+                f"{teacher_prompt_width}"
+            )
         if pad_length > 0:
             pad_ids = torch.full((pad_length,), tokenizer.pad_token_id, dtype=torch.long)
             teacher_prompt_ids = torch.cat([pad_ids, teacher_prompt_ids])
@@ -144,16 +175,13 @@ def build_teacher_batch(
             t_prompt_mask = torch.ones(actual_prompt_len, dtype=torch.long)
 
         # Combine with response
-        response_ids = batch.batch["responses"][i]
-        response_mask = original_attention_mask[-response_length:]
-
         teacher_full_ids = torch.cat([teacher_prompt_ids, response_ids])
         teacher_full_mask = torch.cat([t_prompt_mask, response_mask])
         teacher_position_ids = compute_position_id_with_mask(teacher_full_mask.unsqueeze(0))[0]
+        teacher_position_ids_list.append(teacher_position_ids)
 
         teacher_input_ids_list.append(teacher_full_ids)
         teacher_attention_mask_list.append(teacher_full_mask)
-        teacher_position_ids_list.append(teacher_position_ids)
 
     teacher_input_ids = torch.stack(teacher_input_ids_list)
     teacher_attention_mask = torch.stack(teacher_attention_mask_list)

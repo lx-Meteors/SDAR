@@ -83,10 +83,13 @@ class DataParallelPPOActor(BasePPOActor):
         batch_size: int | None = None,
         seqlen: int | None = None,
         pad_size: int = 0,
+        remove_padding: bool | None = None,
     ) -> torch.Tensor:
         """Extract hidden states immediately before the first action token."""
         from verl.trainer.ppo.latent_flow_utils import get_hidden_state_indices
 
+        if remove_padding is None:
+            remove_padding = self.use_remove_padding
         layer_indices = get_hidden_state_indices(len(hidden_states), layers)
         prompt_end = seqlen - response_length - 1
         if prompt_end < 0:
@@ -97,7 +100,7 @@ class DataParallelPPOActor(BasePPOActor):
         decision_reprs = []
         for layer_idx in layer_indices:
             layer_hidden = hidden_states[layer_idx]
-            if self.use_remove_padding:
+            if remove_padding:
                 if indices is None or batch_size is None or seqlen is None:
                     raise ValueError("remove-padding decision extraction requires indices/batch_size/seqlen")
                 if layer_hidden.dim() == 3:
@@ -154,7 +157,8 @@ class DataParallelPPOActor(BasePPOActor):
         calculate_entropy=False,
         calculate_teca_stats=False,
         return_decision_repr=False,
-        latent_flow_layers="last",
+        latent_flow_layers="all",
+        force_no_remove_padding=False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns:
@@ -177,11 +181,12 @@ class DataParallelPPOActor(BasePPOActor):
             batch_size, seqlen = input_ids.shape
             attention_mask = micro_batch["attention_mask"]
             position_ids = micro_batch["position_ids"]
+            use_remove_padding = self.use_remove_padding and not force_no_remove_padding
             entropy = None
             if position_ids.dim() == 3:  # qwen2vl mrope
                 position_ids = position_ids.transpose(0, 1)  # (bsz, 4, seqlen) -> (4, bsz, seqlen)
 
-            if self.use_remove_padding:
+            if use_remove_padding:
                 input_ids_rmpad, indices, *_ = unpad_input(input_ids.unsqueeze(-1), attention_mask)  # input_ids_rmpad (total_nnz, ...)
                 input_ids_rmpad = input_ids_rmpad.transpose(0, 1)  # (1, total_nnz)
 
@@ -245,6 +250,7 @@ class DataParallelPPOActor(BasePPOActor):
                         batch_size=batch_size,
                         seqlen=seqlen,
                         pad_size=pad_size,
+                        remove_padding=use_remove_padding,
                     )
 
                 if self.use_fused_kernels:
@@ -352,6 +358,7 @@ class DataParallelPPOActor(BasePPOActor):
                         layers=latent_flow_layers,
                         batch_size=batch_size,
                         seqlen=seqlen,
+                        remove_padding=use_remove_padding,
                     )
 
                 if self.use_fused_kernels:
@@ -538,7 +545,7 @@ class DataParallelPPOActor(BasePPOActor):
         use_dynamic_bsz = data.meta_info["use_dynamic_bsz"]
         calculate_teca_stats = data.meta_info.get("calculate_teca_stats", False)
         return_decision_repr = data.meta_info.get("return_decision_repr", False)
-        latent_flow_layers = data.meta_info.get("latent_flow_layers", "last")
+        latent_flow_layers = data.meta_info.get("latent_flow_layers", "all")
 
         select_keys = ["responses", "input_ids", "attention_mask", "position_ids"]
         batch = data.select(batch_keys=select_keys).batch
@@ -641,9 +648,12 @@ class DataParallelPPOActor(BasePPOActor):
                     "privilege_gate",
                     "flow_mask",
                     "next_responses",
-                    "next_input_ids",
-                    "next_attention_mask",
-                    "next_position_ids",
+                    "latent_input_ids",
+                    "latent_attention_mask",
+                    "latent_position_ids",
+                    "next_latent_input_ids",
+                    "next_latent_attention_mask",
+                    "next_latent_position_ids",
                 ]
             )
         batch = data.select(batch_keys=select_keys).batch
@@ -710,12 +720,19 @@ class DataParallelPPOActor(BasePPOActor):
                     if entropy_coeff != 0:
                         calculate_entropy = True
                     if use_latent_flow:
+                        latent_micro_batch = {
+                            **data,
+                            "input_ids": data["latent_input_ids"],
+                            "attention_mask": data["latent_attention_mask"],
+                            "position_ids": data["latent_position_ids"],
+                        }
                         entropy, log_prob, current_decision_repr = self._forward_micro_batch(
-                            micro_batch=data,
+                            micro_batch=latent_micro_batch,
                             temperature=temperature,
                             calculate_entropy=calculate_entropy,
                             return_decision_repr=True,
-                            latent_flow_layers=self.config.get("latent_flow_layers", "last"),
+                            latent_flow_layers=self.config.get("latent_flow_layers", "all"),
+                            force_no_remove_padding=True,
                         )
                     else:
                         entropy, log_prob = self._forward_micro_batch(
@@ -796,16 +813,17 @@ class DataParallelPPOActor(BasePPOActor):
                     if use_latent_flow:
                         next_micro_batch = {
                             "responses": data["next_responses"],
-                            "input_ids": data["next_input_ids"],
-                            "attention_mask": data["next_attention_mask"],
-                            "position_ids": data["next_position_ids"],
+                            "input_ids": data["next_latent_input_ids"],
+                            "attention_mask": data["next_latent_attention_mask"],
+                            "position_ids": data["next_latent_position_ids"],
                         }
                         _, _, next_decision_repr = self._forward_micro_batch(
                             micro_batch=next_micro_batch,
                             temperature=temperature,
                             calculate_entropy=False,
                             return_decision_repr=True,
-                            latent_flow_layers=self.config.get("latent_flow_layers", "last"),
+                            latent_flow_layers=self.config.get("latent_flow_layers", "all"),
+                            force_no_remove_padding=True,
                         )
 
                         from verl.trainer.ppo.latent_flow_utils import compute_latent_flow_loss
