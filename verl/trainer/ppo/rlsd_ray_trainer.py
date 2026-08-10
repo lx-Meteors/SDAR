@@ -42,7 +42,7 @@ def build_teacher_batch(
     tokenizer,
     max_prompt_length: int,
     truncation: str = "error",
-    align_decision_slots: bool = False,
+    preserve_full_context: bool = False,
 ):
     """
     Build a teacher batch by prepending privileged skill info to each sample's prompt.
@@ -58,9 +58,8 @@ def build_teacher_batch(
         tokenizer: The tokenizer.
         max_prompt_length: Maximum prompt length.
         truncation: Truncation mode.
-        align_decision_slots: Extend the prompt width by the longest skill in
-            the batch. This preserves every skill and the complete student
-            prompt; the caller left-pads the student to the returned width.
+        preserve_full_context: Extend the teacher prompt width by the longest
+            skill in the batch, without truncating skill or student context.
 
     Returns:
         teacher_batch: A DataProto with modified input_ids/attention_mask/position_ids
@@ -124,10 +123,10 @@ def build_teacher_batch(
             )
         )
 
-    if align_decision_slots:
-        # Add enough new sequence width for the longest privileged prefix. For
-        # every row, left padding absorbs differences in prompt/skill lengths,
-        # so the untouched student prompt and response end at the same slots.
+    if preserve_full_context:
+        # Add enough teacher-only width for the longest privileged prefix.
+        # Per-row left padding absorbs prompt/skill length differences while
+        # retaining every privileged and original prompt token.
         max_skill_length = max((len(parts[0]) for parts in sample_parts), default=0)
         teacher_prompt_width = prompt_width + max_skill_length
     else:
@@ -137,7 +136,7 @@ def build_teacher_batch(
     teacher_attention_mask_list = []
     teacher_position_ids_list = []
     for skill_prefix_ids, original_prompt_token_ids, response_ids, response_mask in sample_parts:
-        if align_decision_slots:
+        if preserve_full_context:
             teacher_prompt_ids = skill_prefix_ids + original_prompt_token_ids
         else:
             teacher_prompt_budget = max_prompt_length

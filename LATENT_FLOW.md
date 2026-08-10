@@ -41,17 +41,13 @@ default is `all`, matching OPRD's released representation-distillation setup.
 Multi-layer targets scale CPU/Ray transfer approximately linearly with the
 number of selected layers.
 
-For latent-flow forwards, the student receives extra left-padding equal to the
-longest privileged prefix in the rollout batch. The teacher uses those slots
-for the complete privileged prefix. Neither the skill nor the student prompt is
-truncated, and the original prompt, decision anchor, and response occupy
-identical teacher/student tensor slots. Every valid student position ID is then
-shifted by that row's privileged-prefix length, giving corresponding prompt,
-decision, and response tokens identical teacher/student RoPE IDs. These aligned
-student representation forwards keep padding masked and bypass the packed
-remove-padding path; rollout generation is unchanged. The applied shift and
-post-alignment offset are logged as `latent_flow/student_position_shift` and
-`latent_flow/decision_rope_offset` (the latter must be zero).
+For latent-flow forwards, the teacher retains the complete privileged prefix
+and student prompt, while the student keeps its original on-policy input. Each
+side extracts the hidden state at its own last prompt token, so the semantic
+decision token and response are aligned even though their absolute tensor slots
+and RoPE IDs differ by the privileged-prefix length. Both forwards therefore
+retain the efficient packed remove-padding path. The mean absolute-position
+difference is logged as `latent_flow/decision_rope_offset` for diagnosis.
 
 For the old output-space SDAR ablation, use:
 

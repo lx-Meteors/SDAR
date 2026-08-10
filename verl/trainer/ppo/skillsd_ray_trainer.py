@@ -75,6 +75,9 @@ class SkillSDRayTrainer(RLSDRayTrainer):
             raise KeyError("latent-flow SDAR requires traj_uid and turn_step in the rollout batch")
 
         next_indices, flow_mask = build_next_step_indices(traj_uids, turn_steps)
+        for key in ("responses", "input_ids", "attention_mask", "position_ids"):
+            source = batch.batch[key]
+            batch.batch[f"next_{key}"] = source.index_select(0, next_indices.to(source.device))
         batch.batch["flow_mask"] = flow_mask.to(batch.batch["input_ids"].device)
 
         teacher_batch = build_teacher_batch(
@@ -83,47 +86,14 @@ class SkillSDRayTrainer(RLSDRayTrainer):
             tokenizer=self.tokenizer,
             max_prompt_length=self.config.data.max_prompt_length,
             truncation=self.config.data.get("truncation", "left"),
-            align_decision_slots=True,
+            preserve_full_context=True,
         )
-        from verl.trainer.ppo.latent_flow_utils import (
-            left_pad_student_inputs,
-            shift_valid_position_ids,
-            validate_decision_slot_alignment,
-        )
+        from verl.trainer.ppo.latent_flow_utils import validate_decision_semantic_alignment
 
-        latent_input_ids, latent_attention_mask, latent_position_ids = left_pad_student_inputs(
-            input_ids=batch.batch["input_ids"],
-            attention_mask=batch.batch["attention_mask"],
-            position_ids=batch.batch["position_ids"],
-            target_sequence_length=teacher_batch.batch["input_ids"].size(1),
-            pad_token_id=self.tokenizer.pad_token_id,
-        )
-        decision_index = latent_input_ids.size(1) - batch.batch["responses"].size(1) - 1
-        position_offsets = (
-            teacher_batch.batch["position_ids"][:, decision_index]
-            - latent_position_ids[:, decision_index]
-        )
-        latent_position_ids = shift_valid_position_ids(
-            latent_position_ids,
-            latent_attention_mask,
-            position_offsets,
-        )
-        batch.batch["latent_input_ids"] = latent_input_ids
-        batch.batch["latent_attention_mask"] = latent_attention_mask
-        batch.batch["latent_position_ids"] = latent_position_ids
-        batch.batch["next_responses"] = batch.batch["responses"].index_select(
-            0, next_indices.to(batch.batch["responses"].device)
-        )
-        for key in ("input_ids", "attention_mask", "position_ids"):
-            source = batch.batch[f"latent_{key}"]
-            batch.batch[f"next_latent_{key}"] = source.index_select(
-                0, next_indices.to(source.device)
-            )
-
-        decision_index = validate_decision_slot_alignment(
-            student_input_ids=latent_input_ids,
-            student_attention_mask=latent_attention_mask,
-            student_position_ids=latent_position_ids,
+        student_decision_index, teacher_decision_index = validate_decision_semantic_alignment(
+            student_input_ids=batch.batch["input_ids"],
+            student_attention_mask=batch.batch["attention_mask"],
+            student_position_ids=batch.batch["position_ids"],
             teacher_input_ids=teacher_batch.batch["input_ids"],
             teacher_attention_mask=teacher_batch.batch["attention_mask"],
             teacher_position_ids=teacher_batch.batch["position_ids"],
@@ -156,11 +126,10 @@ class SkillSDRayTrainer(RLSDRayTrainer):
         valid_count = flow_mask.sum().clamp_min(1.0)
         valid_gate = gate.float() * flow_mask.to(gate.device)
         return {
-            "latent_flow/decision_slot_match": 1.0,
-            "latent_flow/student_position_shift": position_offsets.float().mean().item(),
+            "latent_flow/decision_token_match": 1.0,
             "latent_flow/decision_rope_offset": (
-                teacher_batch.batch["position_ids"][:, decision_index]
-                - latent_position_ids[:, decision_index]
+                teacher_batch.batch["position_ids"][:, teacher_decision_index]
+                - batch.batch["position_ids"][:, student_decision_index]
             ).float().mean().item(),
             "latent_flow/teacher_gap_mean": mean_gap.mean().item(),
             "latent_flow/preupdate_gate_mean": (valid_gate.sum() / valid_count.to(gate.device)).item(),
